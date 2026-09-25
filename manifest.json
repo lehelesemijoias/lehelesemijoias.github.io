@@ -1,0 +1,12 @@
+{
+  "name": "Le Helê · Vitrine Virtual",
+  "short_name": "Le Helê",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#D0BFA8",
+  "theme_color": "#D0BFA8",
+  "icons": [
+    { "src": "assets/icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icone-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

@@ -1,0 +1,1196 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Painel · Le Helê</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#EBDECA">
+<link rel="icon" href="assets/icone-192.png">
+<link rel="apple-touch-icon" href="assets/icone-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=GFS+Didot&family=Jost:wght@300;400;500&display=swap">
+<style>
+:root{
+  --bg:#EBDECA; --surface:#F7F1E7; --surface-2:#F1E7D8; --line:#D0BFA8; --gold:#C8A96A; --gold-deep:#A9823E;
+  --ink:#3A2E1F; --ink-soft:#7A6547; --on-gold:#2B2115; --danger:#9A3B2B; --scrim:rgba(43,33,21,.45);
+  --display:"GFS Didot","Didot","Bodoni 72","Bodoni MT",Georgia,serif;
+  --body:"Jost","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#17120D; --surface:#221B14; --surface-2:#2B2219; --line:#4A3D2C; --gold:#C8A96A; --gold-deep:#D9BD84;
+    --ink:#EFE4D2; --ink-soft:#B5A184; --on-gold:#221A10; --danger:#E08A76; --scrim:rgba(0,0,0,.6); color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#17120D; --surface:#221B14; --surface-2:#2B2219; --line:#4A3D2C; --gold:#C8A96A; --gold-deep:#D9BD84;
+  --ink:#EFE4D2; --ink-soft:#B5A184; --on-gold:#221A10; --danger:#E08A76; --scrim:rgba(0,0,0,.6); color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{background:var(--bg)}
+body{color:var(--ink);font-family:var(--body);font-size:15px;font-weight:400;line-height:1.5;-webkit-font-smoothing:antialiased;padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--gold-deep);outline-offset:2px}
+
+/* Cabeçalho */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.top-in{max-width:980px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:12px}
+.seal{width:44px;height:44px;border-radius:50%;object-fit:cover;border:1px solid var(--gold);flex:none}
+.brand{flex:1;min-width:0}
+.brand h1{margin:0;font-family:var(--display);font-weight:400;font-size:24px;line-height:1;letter-spacing:.01em}
+.brand p{margin:3px 0 0;white-space:nowrap;font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:var(--ink-soft)}
+.status{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-soft);white-space:nowrap}
+.status svg{width:15px;height:15px;flex:none}
+@media (max-width:460px){.status b{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.status{width:36px;height:36px;justify-content:center;border-radius:50%;border:1px solid var(--line)}}
+.icon-btn{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;flex:none}
+.icon-btn svg{width:18px;height:18px}
+
+main{max-width:980px;margin:0 auto;padding:18px 16px 0}
+.summary{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px}
+.summary h2{margin:0;font-family:var(--display);font-weight:400;font-size:30px;line-height:1.1}
+.summary span{font-size:12px;color:var(--ink-soft);letter-spacing:.04em}
+.tools{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin-bottom:10px}
+@media (min-width:480px){.tools{grid-template-columns:minmax(0,1fr) minmax(0,40%)}}
+@media (min-width:640px){.tools{grid-template-columns:minmax(0,1fr) 240px}}
+.search,.filter{position:relative;display:flex;align-items:center}
+.search svg,.filter svg{position:absolute;left:14px;width:18px;height:18px;color:var(--ink-soft);pointer-events:none}
+.search input,.filter select{width:100%;min-height:48px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:0 16px 0 42px;font-size:16px;outline:none;-webkit-appearance:none;appearance:none}
+.search input:focus,.filter select:focus{border-color:var(--gold)}
+.search input::-webkit-search-cancel-button{-webkit-appearance:none}
+.search .clear{position:absolute;right:6px;width:36px;height:36px;border:none;border-radius:50%;background:transparent;display:grid;place-items:center;color:var(--ink-soft)}
+.search .clear svg{position:static;width:16px;height:16px}
+.search input{padding-right:44px}
+.filter select{padding-right:34px;text-overflow:ellipsis;cursor:pointer}
+.filter .chev{left:auto;right:14px;width:14px;height:14px}
+.filter.on select{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 16%,var(--surface))}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.showing{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--ink-soft);margin:0 0 12px;min-height:20px}
+.linkbtn{border:none;background:none;padding:0;color:var(--gold-deep);font-size:12px;letter-spacing:.08em;text-transform:uppercase;text-decoration:underline;text-underline-offset:3px}
+
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (min-width:640px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:900px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.card{position:relative;display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;transition:transform .15s ease}
+.card:active{transform:scale(.985)}
+.card .open{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;flex:1}
+.card .open:focus-visible{outline:2px solid var(--gold-deep);outline-offset:-2px;border-radius:var(--r)}
+.arch{position:absolute;top:8px;right:8px;z-index:2;display:inline-flex;align-items:center;gap:5px;min-height:32px;padding:0 11px 0 9px;border:1px solid color-mix(in srgb,var(--line) 70%,transparent);border-radius:999px;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);font-size:10.5px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--ink)}
+.arch svg{width:15px;height:15px;flex:none}
+.arch:disabled{opacity:.5}
+.card.arq{border-style:dashed}
+.card.arq .open{filter:grayscale(1)}
+.card.arq .ph img{opacity:.8}
+.card.arq .meta{opacity:.72}
+.card .flag{position:absolute;left:8px;bottom:8px;background:#2a2a2a;color:#f2f2f2;border-radius:999px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:3px 9px}
+.card .ph{position:relative;aspect-ratio:1/1;background:var(--surface-2)}
+.card .ph img{width:100%;height:100%;object-fit:cover;display:block}
+.card .count{position:absolute;right:8px;bottom:8px;background:color-mix(in srgb,var(--surface) 88%,transparent);border-radius:999px;font-size:11px;padding:2px 8px;color:var(--ink-soft)}
+.card .meta{padding:10px 12px 12px;display:flex;flex-direction:column;gap:2px}
+.card .cat{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-deep)}
+.card .nm{font-family:var(--display);font-size:17px;line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.card .row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:4px}
+.card .ref{font-size:11px;color:var(--ink-soft);letter-spacing:.06em}
+.card .pr{font-family:var(--display);font-size:16px;color:var(--gold-deep);white-space:nowrap;font-variant-numeric:tabular-nums}
+
+.empty{border:1px dashed var(--line);border-radius:var(--r);padding:28px 20px;text-align:center;background:var(--surface)}
+.empty img{width:92px;height:92px;border-radius:50%;object-fit:cover;border:1px solid var(--gold)}
+.empty h3{font-family:var(--display);font-weight:400;font-size:24px;margin:14px 0 6px}
+.empty ol{list-style:none;padding:0;margin:14px auto 18px;max-width:320px;text-align:left;display:grid;gap:10px;counter-reset:s}
+.empty li{counter-increment:s;display:flex;gap:12px;font-size:14px;color:var(--ink-soft)}
+.empty li::before{content:counter(s);flex:none;width:24px;height:24px;border-radius:50%;border:1px solid var(--gold);display:grid;place-items:center;font-family:var(--display);color:var(--gold-deep);font-size:13px}
+.loading{padding:48px 0;text-align:center;color:var(--ink-soft);font-size:13px;letter-spacing:.1em}
+
+/* Barra inferior */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:25;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px))}
+.dock-in{max-width:980px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:50px;padding:0 18px;border-radius:999px;border:1px solid var(--gold);background:transparent;font-size:13px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--ink)}
+.btn svg{width:18px;height:18px}
+.btn.primary{background:var(--gold);color:var(--on-gold)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.ghost{border-color:transparent;letter-spacing:.1em}
+.btn.danger{border-color:transparent;color:var(--danger);letter-spacing:.1em}
+
+/* Folha (editor / ajustes) */
+.sheet{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end}
+.sheet::before{content:"";position:absolute;inset:0;background:var(--scrim)}
+.panel{position:relative;background:var(--bg);border-radius:22px 22px 0 0;max-height:94%;width:100%;max-width:640px;margin:0 auto;display:flex;flex-direction:column;animation:up .22s ease-out}
+@keyframes up{from{transform:translateY(24px);opacity:.6}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.panel{animation:none}.card{transition:none}}
+.panel-h{display:flex;align-items:center;gap:12px;padding:16px 16px 12px;border-bottom:1px solid var(--line)}
+.panel-h h3{flex:1;margin:0;font-family:var(--display);font-weight:400;font-size:24px}
+.panel-b{overflow-y:auto;padding:16px 16px 8px;display:grid;gap:16px;-webkit-overflow-scrolling:touch}
+.panel-f{display:flex;gap:10px;align-items:center;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line)}
+.panel-f .btn.primary{flex:1}
+.field{display:grid;gap:6px}
+.field label,.lbl{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft)}
+.field input,.field textarea{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:12px 14px;font-size:16px;outline:none}
+.field input:focus,.field textarea:focus{border-color:var(--gold)}
+.field textarea{min-height:110px;resize:vertical;line-height:1.5}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.hint{font-size:12px;color:var(--ink-soft);margin:0}
+.req{color:var(--gold-deep)}
+.money{position:relative}
+.money span{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--ink-soft);font-size:15px;pointer-events:none}
+.money input{padding-left:42px;font-variant-numeric:tabular-nums}
+
+.photos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.ptile{position:relative;aspect-ratio:1/1;border-radius:10px;overflow:hidden;background:var(--surface-2);border:1px solid var(--line)}
+.ptile img{width:100%;height:100%;object-fit:cover;display:block}
+.ptile .tag{position:absolute;left:6px;top:6px;background:var(--gold);color:var(--on-gold);font-size:9px;letter-spacing:.16em;text-transform:uppercase;border-radius:999px;padding:2px 7px}
+.ptile .act{position:absolute;right:4px;top:4px;display:flex;gap:4px}
+.ptile .act button{width:30px;height:30px;border-radius:50%;border:none;background:color-mix(in srgb,var(--surface) 90%,transparent);display:grid;place-items:center;color:var(--ink)}
+.ptile .act svg{width:14px;height:14px}
+.ptile.busy{display:grid;place-items:center;font-size:11px;color:var(--ink-soft)}
+.addph{aspect-ratio:1/1;border-radius:10px;border:1px dashed var(--gold);background:transparent;display:grid;place-items:center;align-content:center;gap:4px;color:var(--gold-deep);font-size:11px;letter-spacing:.12em;text-transform:uppercase;text-align:center;padding:6px}
+.addph svg{width:24px;height:24px}
+.ordem{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.ordem li{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 6px 6px 8px}
+.ordem select{width:52px;min-height:40px;border:1px solid var(--gold);border-radius:10px;background:transparent;font-family:var(--display);font-size:18px;text-align:center;text-align-last:center;color:var(--gold-deep);-webkit-appearance:none;appearance:none;cursor:pointer}
+.ordem .nm{flex:1;min-width:0;font-family:var(--display);font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ordem .qt{font-size:11px;color:var(--ink-soft);white-space:nowrap}
+.ordem button{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:transparent;display:grid;place-items:center;color:var(--ink)}
+.ordem button:disabled{opacity:.3}
+.ordem button svg{width:16px;height:16px}
+.confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--danger)}
+
+/* Progresso PDF */
+.overlay{position:fixed;inset:0;z-index:60;background:var(--scrim);display:grid;place-items:center;padding:0 16px}
+.ovbox{background:var(--bg);border-radius:20px;padding:26px 22px;width:100%;max-width:360px;text-align:center;border:1px solid var(--line)}
+.ovbox h4{margin:0 0 6px;font-family:var(--display);font-weight:400;font-size:24px}
+.ovbox p{margin:0;font-size:13px;color:var(--ink-soft)}
+.bar{height:4px;background:var(--surface-2);border-radius:4px;overflow:hidden;margin:18px 0 6px}
+.bar i{display:block;height:100%;width:0;background:var(--gold);transition:width .2s}
+.ovbox .btns{display:grid;gap:8px;margin-top:18px}
+
+.toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:70;background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:13px;max-width:calc(100% - 32px);text-align:center}
+.readonly{font-size:12px;color:var(--ink-soft);text-align:center;margin:0 0 12px}
+/* site próprio */
+body{margin:0;padding-top:env(safe-area-inset-top,0px)}
+img{max-width:100%}
+.share{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin:0 0 18px}
+.share .lbl{display:block;margin-bottom:2px}
+.share a{font-family:var(--display);font-size:18px;color:var(--gold-deep);word-break:break-all;text-decoration:none}
+.share-b{display:flex;gap:8px;flex-wrap:wrap}
+.btn.sm{min-height:40px;padding:0 14px;font-size:11px;letter-spacing:.14em}
+.gate{position:fixed;inset:0;z-index:80;background:var(--bg);display:grid;place-items:center;padding:24px 16px;overflow:auto}
+.gate-in{width:100%;max-width:380px;display:grid;gap:14px;text-align:center}
+.gate-in img{width:96px;height:96px;border-radius:50%;object-fit:cover;border:1px solid var(--gold);margin:0 auto}
+.gate-in h2{margin:4px 0 0;font-family:var(--display);font-weight:400;font-size:34px}
+.gate-in p{margin:0;color:var(--ink-soft);font-size:14px}
+.gate-in form{display:grid;gap:12px;text-align:left;margin-top:8px}
+.gate-in .erro{color:var(--danger);font-size:13px;min-height:18px;text-align:center}
+.gate-in code{background:var(--surface-2);padding:2px 6px;border-radius:6px;font-size:13px}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <img class="seal" alt="" src="assets/emblema.jpg">
+    <div class="brand"><h1>Le Helê</h1><p>Vitrine virtual</p></div>
+    <span class="status" id="status" aria-live="polite" title="Conectado à vitrine online"></span>
+    <button class="icon-btn" id="btnAjustes" aria-label="Ajustes da vitrine" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+    <button class="icon-btn" id="btnSair" aria-label="Sair do painel" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/></svg>
+    </button>
+  </div>
+</header>
+
+<main>
+  <section class="share" id="shareBox" hidden>
+    <div><span class="lbl">Sua vitrine online</span><a id="linkVitrine" href="#" target="_blank" rel="noopener"></a></div>
+    <div class="share-b">
+      <button class="btn sm" id="btnCopiar" type="button">Copiar link</button>
+      <button class="btn sm primary" id="btnZap" type="button">Enviar no WhatsApp</button>
+    </div>
+  </section>
+  <div class="summary"><h2>Peças</h2><span id="resumo"></span></div>
+  <p class="showing" id="atalhoOrdem" hidden><button class="linkbtn" type="button" id="btnOrdem">Numerar ordem das categorias na vitrine</button></p>
+  <p class="readonly" id="aviso" hidden>Você está vendo a vitrine. Para adicionar ou editar peças, peça acesso de edição à dona do painel.</p>
+  <div class="tools" id="tools" hidden>
+    <div class="search" role="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      <label for="busca" class="sr">Buscar por nome ou código</label>
+      <input id="busca" type="search" placeholder="Buscar por nome ou código" autocomplete="off" enterkeyhint="search">
+      <button class="clear" id="buscaLimpar" type="button" aria-label="Limpar busca" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="filter" id="filtroBox">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+      <label for="filtroCat" class="sr">Filtrar por categoria</label>
+      <select id="filtroCat"><option value="">Todas</option></select>
+      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+    </div>
+  </div>
+  <p class="showing" id="mostrando" hidden></p>
+  <div id="lista"><div class="loading">CARREGANDO VITRINE…</div></div>
+</main>
+
+<div class="dock">
+  <div class="dock-in">
+    <button class="btn" id="btnAdd" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 5v14M5 12h14"/></svg>Adicionar
+    </button>
+    <button class="btn primary" id="btnPdf" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 14h6M9 17h4"/></svg>Gerar PDF
+    </button>
+  </div>
+</div>
+
+<!-- Editor de peça -->
+<div class="sheet" id="editor" hidden role="dialog" aria-modal="true" aria-labelledby="edTitulo">
+  <div class="panel">
+    <div class="panel-h">
+      <h3 id="edTitulo">Nova peça</h3>
+      <button class="icon-btn" id="edFechar" aria-label="Fechar sem salvar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <form class="panel-b" id="edForm" novalidate>
+      <div class="field">
+        <span class="lbl">Fotos <span class="req">*</span></span>
+        <div class="photos" id="edFotos"></div>
+        <input type="file" id="edArquivo" accept="image/*" multiple hidden>
+        <p class="hint">A primeira foto é a capa da peça na vitrine. Toque na estrela para escolher outra capa.</p>
+      </div>
+      <div class="field"><label for="fNome">Nome da peça <span class="req">*</span></label><input id="fNome" autocomplete="off" placeholder="Ex.: Brinco Gota Cristal" maxlength="60"></div>
+      <div class="two">
+        <div class="field"><label for="fCodigo">Código</label><input id="fCodigo" autocomplete="off" placeholder="LH-001" maxlength="20"></div>
+        <div class="field"><label for="fValor">Valor</label><div class="money"><span>R$</span><input id="fValor" inputmode="decimal" autocomplete="off" placeholder="0,00"></div></div>
+      </div>
+      <div class="two">
+        <div class="field"><label for="fCategoria">Categoria</label><input id="fCategoria" list="dlCategorias" autocomplete="off" placeholder="Brincos" maxlength="30"></div>
+        <div class="field"><label for="fBanho">Banho / material</label><input id="fBanho" list="dlBanhos" autocomplete="off" placeholder="Ouro 18k" maxlength="40"></div>
+      </div>
+      <div class="field"><label for="fDescricao">Descrição</label><textarea id="fDescricao" maxlength="600" placeholder="Detalhes, medidas, pedras, fecho…"></textarea></div>
+      <datalist id="dlCategorias"></datalist>
+      <datalist id="dlBanhos"></datalist>
+    </form>
+    <div class="panel-f" id="edRodape">
+      <button class="btn danger" id="edExcluir" type="button" hidden>Excluir</button>
+      <button class="btn primary" id="edSalvar" type="button">Salvar peça</button>
+    </div>
+  </div>
+</div>
+
+<!-- Ajustes -->
+<div class="sheet" id="ajustes" hidden role="dialog" aria-modal="true" aria-labelledby="ajTitulo">
+  <div class="panel">
+    <div class="panel-h">
+      <h3 id="ajTitulo">Ajustes da vitrine</h3>
+      <button class="icon-btn" id="ajFechar" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <form class="panel-b" id="ajForm" novalidate>
+      <div class="field" id="ordemBox">
+        <span class="lbl">Ordem das categorias</span>
+        <ol class="ordem" id="ordemLista"></ol>
+        <p class="hint">Escolha o número de cada categoria ou use as setas. É nessa ordem que elas aparecem na vitrine online, no PDF e no painel.</p>
+      </div>
+      <div class="field"><label for="aColecao">Nome da coleção (capa)</label><input id="aColecao" maxlength="50" placeholder="Ex.: Coleção Primavera"></div>
+      <div class="field"><label for="aWhats">WhatsApp para pedidos</label><input id="aWhats" inputmode="tel" maxlength="20" placeholder="(11) 98765-4321"><p class="hint">Cria o botão “Quero esta peça” em cada página, que abre uma conversa já com o nome da peça.</p></div>
+      <div class="field"><label for="aInsta">Instagram</label><input id="aInsta" maxlength="40" placeholder="@lehele.semijoias"></div>
+      <div class="field">
+        <span class="lbl">Cópia de segurança</span>
+        <p class="hint">Baixa um arquivo com todas as peças, fotos e ajustes. Guarde no computador ou no Google Drive. “Importar” traz peças de uma cópia (peças que já existem com o mesmo nome e código são puladas).</p>
+        <div class="two"><button class="btn sm" type="button" id="btnBackup">Baixar cópia</button><button class="btn sm" type="button" id="btnImportar">Importar cópia</button></div>
+        <input type="file" id="arqImport" accept=".json,application/json" hidden>
+      </div>
+      <p class="hint" id="contaEmail"></p>
+    </form>
+    <div class="panel-f"><button class="btn primary" id="ajSalvar" type="button">Salvar ajustes</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="gerando" hidden>
+  <div class="ovbox" role="status" aria-live="polite">
+    <h4 id="gTitulo">Criando sua vitrine</h4>
+    <p id="gTexto">Preparando…</p>
+    <div class="bar"><i id="gBarra"></i></div>
+    <div class="btns" id="gBtns" hidden></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<div class="gate" id="gate">
+  <div class="gate-in">
+    <img src="assets/emblema.jpg" alt="">
+    <h2>Le Helê</h2>
+    <div id="gateCarregando"><p>Abrindo o painel…</p></div>
+    <div id="gateConfig" hidden>
+      <p>Falta ligar o site ao Supabase. Abra o arquivo <code>config.js</code> e preencha o endereço do projeto e a chave pública, como mostra o guia.</p>
+    </div>
+    <div id="gateLogin" hidden>
+      <p>Painel de cadastro da vitrine</p>
+      <form id="fLogin" novalidate>
+        <div class="field"><label for="lEmail">E-mail</label><input id="lEmail" type="email" autocomplete="username" inputmode="email" required></div>
+        <div class="field"><label for="lSenha">Senha</label><input id="lSenha" type="password" autocomplete="current-password" required></div>
+        <button class="btn primary" type="submit" id="lEntrar">Entrar</button>
+        <button class="linkbtn" type="button" id="lEsqueci" style="justify-self:center">Esqueci minha senha</button>
+      </form>
+      <p class="erro" id="lErro" aria-live="polite"></p>
+    </div>
+    <div id="gateNovaSenha" hidden>
+      <p>Crie uma nova senha para entrar no painel.</p>
+      <form id="fNovaSenha" novalidate>
+        <div class="field"><label for="nSenha">Nova senha</label><input id="nSenha" type="password" autocomplete="new-password" minlength="6" required></div>
+        <button class="btn primary" type="submit">Salvar nova senha</button>
+      </form>
+      <p class="erro" id="nErro" aria-live="polite"></p>
+    </div>
+    <div id="gateSemAcesso" hidden>
+      <p>Este e-mail entrou, mas não tem permissão para mexer na vitrine. Peça para incluir o e-mail na lista de administradores (tabela <code>admins</code> do Supabase).</p>
+      <button class="btn" type="button" id="gSair">Sair</button>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="lib/supabase.js"></script>
+<script src="lib/jspdf.umd.min.js"></script>
+<script src="js/comum.js"></script>
+<script>
+let FONT_B64 = "", COVER_B64 = "", EMBLEM_B64 = "";
+
+const $ = s => document.querySelector(s);
+const CATS_BASE = ["Anéis","Brincos","Colares","Pulseiras","Tornozeleiras","Conjuntos","Piercings","Braceletes"];
+const BANHOS_BASE = ["Ouro 18k","Ouro rosé","Ródio branco","Ródio negro","Prata 925","Banho de ouro 18k com zircônias"];
+
+const S = { pecas: [], config: {}, filtro: "", busca: "", canWrite: false, ready: false, email: "" };
+let store = null;
+
+/* ---------- utilidades ---------- */
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)).replace(/-/g, "");
+const brl = LH.brl;
+function parseValor(s) {
+  s = String(s || "").replace(/[^\d,.]/g, "");
+  if (!s) return null;
+  if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
+  else if ((s.match(/\./g) || []).length > 1 || /\.\d{3}$/.test(s)) s = s.replace(/\./g, "");
+  const n = Math.round(parseFloat(s) * 100);
+  return isFinite(n) ? n : null;
+}
+const fmtValorInput = c => c == null ? "" : (c / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const esc = LH.esc;
+let toastT;
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 3200); }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const catOf = LH.catOf, norm = LH.norm;
+const rankCat = c => LH.rankCat(S.config, c);
+const ordenarCats = cats => LH.ordenarCats(S.config, cats);
+const ordenar = pecas => LH.ordenar(S.config, pecas);
+
+function loadImg(src) {
+  return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("imagem")); i.src = src; });
+}
+async function comprimir(file, max = 1600, q = 0.86) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await loadImg(url);
+    const s = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+    const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+    g.drawImage(img, 0, 0, c.width, c.height);
+    return await new Promise(r => c.toBlob(r, "image/jpeg", q));
+  } finally { URL.revokeObjectURL(url); }
+}
+
+/* ---------- armazenamento: Supabase ---------- */
+function SupaStore(sb) {
+  const B = sb.storage.from("fotos");
+  let onP = () => { }, onC = () => { }, t = null;
+  const pub = p => p ? B.getPublicUrl(p).data.publicUrl : "";
+  async function carregar() {
+    const [r1, r2] = await Promise.all([
+      sb.from("pecas").select("*").order("criado_em", { ascending: true }),
+      sb.from("config").select("*").eq("id", 1).maybeSingle()
+    ]);
+    if (r1.error) throw r1.error;
+    if (r2.error) throw r2.error;
+    onC(LH.rowToConfig(r2.data)); onP((r1.data || []).map(LH.rowToPeca));
+  }
+  const agendar = () => { clearTimeout(t); t = setTimeout(() => carregar().catch(() => { }), 300); };
+  return {
+    kind: "supabase",
+    async init(p, c) {
+      onP = p; onC = c; await carregar();
+      try { sb.channel("painel").on("postgres_changes", { event: "*", schema: "public", table: "config" }, agendar).subscribe(); } catch (e) { }
+      document.addEventListener("visibilitychange", () => { if (!document.hidden) agendar(); });
+    },
+    recarregar: carregar,
+    async savePeca(id, d) {
+      const row = LH.pecaToRow(d);
+      if (id) { const { error } = await sb.from("pecas").update(row).eq("id", id); if (error) throw error; }
+      else { const { data, error } = await sb.from("pecas").insert(row).select("id").single(); if (error) throw error; id = data.id; }
+      agendar(); return id;
+    },
+    async deletePeca(id) { const { error } = await sb.from("pecas").delete().eq("id", id); if (error) throw error; agendar(); },
+    async saveConfig(c) { const { error } = await sb.from("config").update(LH.configToRow(c)).eq("id", 1); if (error) throw error; agendar(); },
+    async upload(file) {
+      const base = "pecas/" + uid();
+      const full = await comprimir(file, 1600, 0.85), thumb = await comprimir(file, 600, 0.8);
+      const dim = await medir(full);
+      for (const [path, blob] of [[base + "-full.jpg", full], [base + "-thumb.jpg", thumb]]) {
+        const { error } = await B.upload(path, blob, { contentType: "image/jpeg", cacheControl: "31536000", upsert: false });
+        if (error) throw error;
+      }
+      return { full: base + "-full.jpg", thumb: base + "-thumb.jpg", w: dim.w, h: dim.h };
+    },
+    async removeFoto(ref) { try { await B.remove([ref.full, ref.thumb].filter((x, i, a) => x && a.indexOf(x) === i)); } catch (e) { } },
+    url: ref => ref ? pub(ref.thumb || ref.full) : "",
+    urlFull: ref => ref ? pub(ref.full || ref.thumb) : "",
+    async blob(ref) { const r = await fetch(pub(ref.full || ref.thumb)); if (!r.ok) throw new Error("foto indisponível"); return r.blob(); }
+  };
+}
+async function medir(blob) {
+  const url = URL.createObjectURL(blob);
+  try { const i = await loadImg(url); return { w: i.naturalWidth, h: i.naturalHeight }; } catch (e) { return { w: 0, h: 0 }; } finally { URL.revokeObjectURL(url); }
+}
+
+/* ---------- inicialização e login ---------- */
+let sb = null;
+function mostrarGate(qual) {
+  $("#gate").hidden = !qual;
+  ["gateCarregando", "gateConfig", "gateLogin", "gateNovaSenha", "gateSemAcesso"].forEach(id => $("#" + id).hidden = id !== qual);
+  if (qual === "gateLogin") setTimeout(() => $("#lEmail").focus(), 50);
+}
+function setStatus() {
+  $("#status").innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 18a4.5 4.5 0 0 1-.6-9A6 6 0 0 1 18 9.5a4 4 0 0 1-.5 8.5z"/><path d="M9.5 13.5l2 2 3.5-4"/></svg><b>Vitrine online</b>';
+}
+const siteURL = () => (LH.CFG.SITE_URL || new URL(".", location.href).href);
+function prepararCompartilhar() {
+  const url = siteURL();
+  $("#shareBox").hidden = false;
+  $("#linkVitrine").href = url; $("#linkVitrine").textContent = url.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  $("#btnCopiar").onclick = async () => {
+    try { await navigator.clipboard.writeText(url); toast("Link copiado"); }
+    catch (e) { const r = document.createRange(); r.selectNodeContents($("#linkVitrine")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast("Link selecionado. Copie e cole onde quiser."); }
+  };
+  $("#btnZap").onclick = () => { window.open("https://wa.me/?text=" + encodeURIComponent(`Conheça a vitrine Le Helê ✨ ${url}`), "_blank", "noopener"); };
+}
+let iniciado = false;
+async function entrarNoPainel(session) {
+  S.email = (session && session.user && session.user.email) || "";
+  const { data: admin, error } = await sb.rpc("is_admin");
+  if (error || !admin) { mostrarGate("gateSemAcesso"); return; }
+  mostrarGate(null);
+  $("#btnSair").hidden = false; $("#btnAjustes").hidden = false;
+  $("#contaEmail").textContent = S.email ? "Conectado como " + S.email : "";
+  S.canWrite = true;
+  setStatus(); prepararCompartilhar();
+  if (iniciado) return;
+  iniciado = true;
+  try {
+    store = SupaStore(sb);
+    await store.init(pecas => { S.pecas = pecas; S.ready = true; render(); }, cfg => { S.config = cfg || {}; if (S.ready) render(); });
+  } catch (e) {
+    console.error(e);
+    $("#lista").innerHTML = '<div class="empty"><h3>Não foi possível carregar</h3><p class="hint">Verifique a internet e se o script do Supabase foi executado (guia, passo 2).</p></div>';
+  }
+}
+async function boot() {
+  if (!LH.configurado()) { mostrarGate("gateConfig"); return; }
+  sb = LH.criarCliente();
+  let recuperando = /type=recovery/.test(location.hash);
+  sb.auth.onAuthStateChange((ev, session) => {
+    if (ev === "PASSWORD_RECOVERY") { recuperando = true; mostrarGate("gateNovaSenha"); return; }
+    if (ev === "SIGNED_IN" && session && !recuperando) entrarNoPainel(session);
+    if (ev === "SIGNED_OUT") location.reload();
+  });
+  const { data } = await sb.auth.getSession();
+  if (recuperando) { mostrarGate("gateNovaSenha"); return; }
+  if (data && data.session) entrarNoPainel(data.session); else mostrarGate("gateLogin");
+}
+$("#fLogin").addEventListener("submit", async e => {
+  e.preventDefault();
+  const email = $("#lEmail").value.trim(), senha = $("#lSenha").value;
+  $("#lErro").textContent = "";
+  if (!email || !senha) { $("#lErro").textContent = "Preencha e-mail e senha."; return; }
+  const b = $("#lEntrar"); b.disabled = true; b.textContent = "Entrando…";
+  const { error } = await sb.auth.signInWithPassword({ email, password: senha });
+  b.disabled = false; b.textContent = "Entrar";
+  if (error) $("#lErro").textContent = /invalid/i.test(error.message || "") ? "E-mail ou senha incorretos." : "Não foi possível entrar. Verifique a internet.";
+});
+$("#lEsqueci").onclick = async () => {
+  const email = $("#lEmail").value.trim();
+  if (!email) { $("#lErro").textContent = "Digite seu e-mail acima e toque de novo em “Esqueci minha senha”."; return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: new URL("painel.html", siteURL()).href });
+  $("#lErro").textContent = error ? "Não foi possível enviar agora. Tente de novo em alguns minutos." : "Enviamos um link para " + email + ". Abra o e-mail para criar a nova senha.";
+};
+$("#fNovaSenha").addEventListener("submit", async e => {
+  e.preventDefault();
+  const senha = $("#nSenha").value;
+  if (senha.length < 6) { $("#nErro").textContent = "Use pelo menos 6 caracteres."; return; }
+  const { error } = await sb.auth.updateUser({ password: senha });
+  if (error) { $("#nErro").textContent = "Não foi possível salvar. Peça um novo link."; return; }
+  history.replaceState(null, "", location.pathname);
+  const { data } = await sb.auth.getSession();
+  toast("Senha alterada"); entrarNoPainel(data.session);
+});
+$("#btnSair").onclick = () => sb.auth.signOut();
+$("#gSair").onclick = () => sb.auth.signOut();
+
+/* ---------- lista ---------- */
+function render() {
+  const todas = ordenar(S.pecas);
+  const pecas = [...todas.filter(p => !p.arquivada), ...todas.filter(p => p.arquivada)];
+  const nArq = pecas.filter(p => p.arquivada).length;
+  const cats = [...new Set(pecas.map(catOf).filter(Boolean))];
+  if (S.filtro && !["__sem", "__arq"].includes(S.filtro) && !cats.includes(S.filtro)) S.filtro = "";
+  if (S.filtro === "__arq" && !nArq) S.filtro = "";
+  $("#resumo").textContent = pecas.length ? `${pecas.length} ${pecas.length === 1 ? "peça" : "peças"}${cats.length ? " · " + cats.length + (cats.length === 1 ? " categoria" : " categorias") : ""}${nArq ? " · " + nArq + (nArq === 1 ? " arquivada" : " arquivadas") : ""}` : "";
+  $("#tools").hidden = !pecas.length;
+  $("#atalhoOrdem").hidden = !S.canWrite || cats.length < 2;
+  $("#filtroCat").innerHTML = `<option value="">Todas as categorias</option>` + cats.map(c => `<option value="${esc(c)}" ${c === S.filtro ? "selected" : ""}>${esc(c)}</option>`).join("") + (pecas.some(p => !catOf(p)) ? `<option value="__sem" ${S.filtro === "__sem" ? "selected" : ""}>Sem categoria</option>` : "") + (nArq ? `<option value="__arq" ${S.filtro === "__arq" ? "selected" : ""}>Arquivadas</option>` : "");
+  if (S.filtro === "__sem" && !pecas.some(p => !catOf(p))) S.filtro = "";
+  $("#filtroCat").value = S.filtro;
+  $("#filtroBox").classList.toggle("on", !!S.filtro);
+  $("#buscaLimpar").hidden = !S.busca;
+  $("#btnAdd").disabled = !S.ready;
+  $("#btnPdf").disabled = !pecas.some(p => !p.arquivada);
+  $("#dlCategorias").innerHTML = [...new Set([...cats, ...CATS_BASE])].map(c => `<option value="${esc(c)}">`).join("");
+  $("#dlBanhos").innerHTML = [...new Set([...pecas.map(p => (p.banho || "").trim()).filter(Boolean), ...BANHOS_BASE])].map(c => `<option value="${esc(c)}">`).join("");
+
+  if (!pecas.length) {
+    $("#mostrando").hidden = true;
+    $("#lista").innerHTML = `<div class="empty"><img src="assets/emblema.jpg" alt="">
+      <h3>Sua vitrine começa aqui</h3>
+      <ol><li>Toque em Adicionar e escolha as fotos da peça.</li><li>Preencha nome, valor e descrição. Tudo fica salvo automaticamente.</li><li>Pronto: a peça aparece na hora na vitrine online das suas clientes.</li></ol>
+      ${S.canWrite ? '<button class="btn primary" id="btnAddVazio">Adicionar primeira peça</button>' : ""}</div>`;
+    const b = $("#btnAddVazio"); if (b) b.onclick = () => abrirEditor(null);
+    return;
+  }
+  const q = norm(S.busca), qc = q.replace(/[^a-z0-9]/g, "");
+  const vis = pecas.filter(p => {
+    if (S.filtro === "__arq") { if (!p.arquivada) return false; }
+    else if (S.filtro === "__sem" ? catOf(p) : (S.filtro && catOf(p) !== S.filtro)) return false;
+    if (!q) return true;
+    const cod = norm(p.codigo);
+    return norm(p.nome).includes(q) || cod.includes(q) || (qc && cod.replace(/[^a-z0-9]/g, "").includes(qc));
+  });
+  const filtrando = !!(q || S.filtro);
+  const nomeCat = S.filtro === "__sem" ? "Sem categoria" : S.filtro === "__arq" ? "Arquivadas" : S.filtro;
+  $("#mostrando").hidden = !filtrando;
+  $("#mostrando").innerHTML = filtrando ? `<span>Mostrando ${vis.length} de ${pecas.length} ${pecas.length === 1 ? "peça" : "peças"}${nomeCat ? " em " + esc(nomeCat) : ""}</span><button class="linkbtn" type="button" data-limpar>Limpar filtros</button>` : "";
+  if (!vis.length) {
+    $("#lista").innerHTML = `<div class="empty"><h3>Nenhuma peça encontrada</h3><p class="hint">${q ? `Nada com “${esc(S.busca.trim())}” no nome ou no código` : "Nenhuma peça nesta categoria"}${nomeCat && q ? " em " + esc(nomeCat) : ""}.</p><p style="margin:16px 0 0"><button class="btn" type="button" data-limpar>Limpar filtros</button></p></div>`;
+    return;
+  }
+  $("#lista").innerHTML = `<div class="grid">${vis.map(p => {
+    const f = (p.fotos || [])[0];
+    const arq = !!p.arquivada;
+    return `<div class="card${arq ? " arq" : ""}" data-id="${esc(p.id)}">
+      <button class="open" type="button" ${S.canWrite ? "" : "tabindex='-1'"} aria-label="${S.canWrite ? "Editar " : ""}${esc(p.nome)}${arq ? " (arquivada)" : ""}">
+      <div class="ph">${f ? `<img loading="lazy" alt="" src="${esc(store.url(f))}">` : ""}${arq ? `<span class="flag">Arquivada</span>` : ""}${(p.fotos || []).length > 1 ? `<span class="count">${p.fotos.length} fotos</span>` : ""}</div>
+      <div class="meta">${catOf(p) ? `<span class="cat">${esc(catOf(p))}</span>` : ""}<span class="nm">${esc(p.nome)}</span>
+      <div class="row"><span class="ref">${esc(p.codigo || "")}</span><span class="pr">${esc(brl(p.valor) || "Sob consulta")}</span></div></div></button>
+      ${S.canWrite ? `<button class="arch" type="button" data-arq="${esc(p.id)}" aria-label="${arq ? "Reativar" : "Arquivar"} ${esc(p.nome)}">${arq
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4h4"/></svg>Reativar'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="4.5" rx="1"/><path d="M5 8.5V19a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.5M10 12.5h4"/></svg>Arquivar'}</button>` : ""}
+      </div>`;
+  }).join("")}</div>`;
+}
+
+let buscaT;
+$("#busca").addEventListener("input", e => { S.busca = e.target.value; clearTimeout(buscaT); buscaT = setTimeout(render, 120); });
+$("#buscaLimpar").onclick = () => { S.busca = ""; $("#busca").value = ""; render(); $("#busca").focus(); };
+$("#filtroCat").addEventListener("change", e => { S.filtro = e.target.value; try { localStorage.setItem("lehele-filtro", S.filtro); } catch (err) { } render(); });
+const limparFiltros = () => { S.busca = ""; S.filtro = ""; $("#busca").value = ""; try { localStorage.removeItem("lehele-filtro"); } catch (err) { } render(); };
+document.addEventListener("click", e => { if (e.target.closest("[data-limpar]")) limparFiltros(); });
+try { S.filtro = localStorage.getItem("lehele-filtro") || ""; } catch (err) { }
+$("#lista").addEventListener("click", e => {
+  if (!S.canWrite) return;
+  const a = e.target.closest("[data-arq]"); if (a) return alternarArquivo(a.dataset.arq, a);
+  const c = e.target.closest(".open"); if (!c) return;
+  abrirEditor(S.pecas.find(p => p.id === c.closest(".card").dataset.id));
+});
+async function alternarArquivo(id, btn) {
+  const p = S.pecas.find(x => x.id === id); if (!p) return;
+  const { id: _id, ...data } = p;
+  const arquivar = !p.arquivada;
+  btn.disabled = true;
+  try {
+    await store.savePeca(id, { ...data, arquivada: arquivar, atualizadoEm: Date.now() });
+    toast(arquivar ? "Peça arquivada. Ela saiu da vitrine." : "Peça reativada. Ela voltou para a vitrine.");
+  } catch (e) { btn.disabled = false; toast("Não foi possível arquivar. Verifique a conexão e tente de novo."); }
+}
+$("#btnAdd").onclick = () => abrirEditor(null);
+
+/* ---------- editor ---------- */
+let D = null; // rascunho
+function abrirEditor(p) {
+  D = { id: p ? p.id : null, original: p ? [...(p.fotos || [])] : [], fotos: p ? [...(p.fotos || [])] : [], novas: [], enviando: 0, criadoEm: p ? p.criadoEm : null, arquivada: !!(p && p.arquivada), confirmando: false };
+  $("#edTitulo").textContent = p ? "Editar peça" : "Nova peça";
+  $("#fNome").value = p?.nome || ""; $("#fCodigo").value = p?.codigo || ""; $("#fValor").value = fmtValorInput(p?.valor ?? null);
+  $("#fCategoria").value = p?.categoria || ""; $("#fBanho").value = p?.banho || ""; $("#fDescricao").value = p?.descricao || "";
+  $("#edExcluir").hidden = !p;
+  resetRodape();
+  renderFotos();
+  $("#editor").hidden = false;
+  document.body.style.overflow = "hidden";
+  $("#edForm").scrollTop = 0;
+  if (!p) $("#edArquivo").click();
+}
+function resetRodape() {
+  D && (D.confirmando = false);
+  $("#edRodape").innerHTML = `<button class="btn danger" id="edExcluir" type="button" ${D && D.id ? "" : "hidden"}>Excluir</button><button class="btn primary" id="edSalvar" type="button">Salvar peça</button>`;
+  $("#edExcluir").onclick = pedirExclusao; $("#edSalvar").onclick = salvarPeca;
+}
+async function fecharEditor(descartar = true) {
+  if (descartar && D) for (const id of D.novas) store.removeFoto(id);
+  D = null; $("#editor").hidden = true; document.body.style.overflow = "";
+}
+$("#edFechar").onclick = () => fecharEditor(true);
+
+function renderFotos() {
+  const tiles = D.fotos.map((id, i) => `<div class="ptile"><img alt="Foto ${i + 1}" src="${esc(store.url(id))}">
+    ${i === 0 ? '<span class="tag">Capa</span>' : ""}
+    <div class="act">${i > 0 ? `<button type="button" data-capa="${i}" aria-label="Usar como capa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg></button>` : ""}
+    <button type="button" data-rm="${i}" aria-label="Remover foto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div></div>`);
+  for (let i = 0; i < D.enviando; i++) tiles.push('<div class="ptile busy">Enviando…</div>');
+  tiles.push(`<button type="button" class="addph" id="edAddFoto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="12" cy="12.5" r="3.5"/><path d="M8 5l1.5-2h5L16 5"/></svg>${D.fotos.length ? "Mais fotos" : "Escolher fotos"}</button>`);
+  $("#edFotos").innerHTML = tiles.join("");
+  $("#edAddFoto").onclick = () => $("#edArquivo").click();
+}
+$("#edFotos").addEventListener("click", e => {
+  const c = e.target.closest("[data-capa]"), r = e.target.closest("[data-rm]");
+  if (c) { const i = +c.dataset.capa; const [f] = D.fotos.splice(i, 1); D.fotos.unshift(f); renderFotos(); }
+  if (r) { D.fotos.splice(+r.dataset.rm, 1); renderFotos(); }
+});
+$("#edArquivo").addEventListener("change", async e => {
+  const files = [...e.target.files].filter(f => f.type.startsWith("image/") || /\.(jpe?g|png|heic|webp)$/i.test(f.name));
+  e.target.value = "";
+  if (!files.length || !D) return;
+  const alvo = D;
+  alvo.enviando += files.length; renderFotos();
+  for (const f of files) {
+    try {
+      const id = await store.upload(f);
+      if (D !== alvo) { store.removeFoto(id); continue; }
+      alvo.fotos.push(id); alvo.novas.push(id);
+    } catch (err) {
+      console.error(err); toast(/quota|exceed|size/i.test((err && (err.message || err.error)) || "") ? "O espaço de fotos está cheio. Exclua peças antigas para liberar." : "Não foi possível enviar uma das fotos. Tente novamente.");
+    } finally { alvo.enviando--; if (D === alvo) renderFotos(); }
+  }
+});
+$("#fValor").addEventListener("blur", e => { const v = parseValor(e.target.value); e.target.value = v == null ? "" : fmtValorInput(v); });
+
+async function salvarPeca() {
+  if (!D) return;
+  const nome = $("#fNome").value.trim();
+  if (D.enviando) return toast("Aguarde as fotos terminarem de enviar.");
+  if (!D.fotos.length) return toast("Adicione pelo menos uma foto da peça.");
+  if (!nome) { $("#fNome").focus(); return toast("Dê um nome à peça."); }
+  const data = {
+    nome, codigo: $("#fCodigo").value.trim(), valor: parseValor($("#fValor").value),
+    categoria: $("#fCategoria").value.trim(), banho: $("#fBanho").value.trim(), descricao: $("#fDescricao").value.trim(),
+    fotos: D.fotos, criadoEm: D.criadoEm || Date.now(), atualizadoEm: Date.now(), arquivada: !!D.arquivada
+  };
+  const btn = $("#edSalvar"); btn.disabled = true; btn.textContent = "Salvando…";
+  try {
+    await store.savePeca(D.id, data);
+    const removidas = D.original.filter(id => !D.fotos.includes(id));
+    for (const id of removidas) store.removeFoto(id);
+    const novo = !D.id;
+    await fecharEditor(false);
+    toast(novo ? "Peça publicada na vitrine" : "Alterações publicadas na vitrine");
+  } catch (e) {
+    btn.disabled = false; btn.textContent = "Salvar peça";
+    console.error(e); toast("Não foi possível salvar. Verifique a conexão e tente de novo.");
+  }
+}
+function pedirExclusao() {
+  D.confirmando = true;
+  $("#edRodape").innerHTML = `<div class="confirm" style="flex:1">Excluir esta peça e suas fotos?</div><button class="btn ghost" id="edNao" type="button">Manter</button><button class="btn primary" id="edSim" type="button" style="flex:none;background:var(--danger);border-color:var(--danger);color:#fff">Excluir</button>`;
+  $("#edNao").onclick = resetRodape;
+  $("#edSim").onclick = async () => {
+    try {
+      await store.deletePeca(D.id);
+      for (const id of new Set([...D.original, ...D.fotos])) store.removeFoto(id);
+      await fecharEditor(true);
+      toast("Peça excluída");
+    } catch (e) { toast("Não foi possível excluir. Tente de novo."); resetRodape(); }
+  };
+}
+
+/* ---------- ajustes ---------- */
+let ORDEM = [];
+function renderOrdem() {
+  const n = ORDEM.length, cont = c => S.pecas.filter(p => catOf(p) === c).length;
+  $("#ordemBox").hidden = n < 2;
+  $("#ordemLista").innerHTML = ORDEM.map((c, i) => `<li>
+    <select data-pos="${i}" aria-label="Posição de ${esc(c)}">${ORDEM.map((_, k) => `<option value="${k}" ${k === i ? "selected" : ""}>${k + 1}</option>`).join("")}</select>
+    <span class="nm">${esc(c)}</span><span class="qt">${cont(c)} ${cont(c) === 1 ? "peça" : "peças"}</span>
+    <button type="button" data-mv="${i}" data-d="-1" aria-label="Subir ${esc(c)}" ${i === 0 ? "disabled" : ""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 15l6-6 6 6"/></svg></button>
+    <button type="button" data-mv="${i}" data-d="1" aria-label="Descer ${esc(c)}" ${i === n - 1 ? "disabled" : ""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 9l6 6 6-6"/></svg></button></li>`).join("");
+}
+const mover = (de, para) => { if (para < 0 || para >= ORDEM.length || de === para) return; const [c] = ORDEM.splice(de, 1); ORDEM.splice(para, 0, c); renderOrdem(); };
+$("#ordemLista").addEventListener("click", e => { const b = e.target.closest("[data-mv]"); if (b) mover(+b.dataset.mv, +b.dataset.mv + +b.dataset.d); });
+$("#ordemLista").addEventListener("change", e => { const sl = e.target.closest("select[data-pos]"); if (sl) mover(+sl.dataset.pos, +sl.value); });
+function abrirAjustes(focoOrdem) {
+  $("#aColecao").value = S.config.colecao || ""; $("#aWhats").value = S.config.whatsapp || ""; $("#aInsta").value = S.config.instagram || "";
+  ORDEM = ordenarCats([...new Set(S.pecas.map(catOf).filter(Boolean))]);
+  renderOrdem();
+  $("#ajustes").hidden = false; document.body.style.overflow = "hidden";
+  $("#ajForm").scrollTop = 0;
+}
+$("#btnAjustes").onclick = () => abrirAjustes();
+$("#btnOrdem").onclick = () => abrirAjustes(true);
+const fecharAjustes = () => { $("#ajustes").hidden = true; document.body.style.overflow = ""; };
+$("#ajFechar").onclick = fecharAjustes;
+$("#ajSalvar").onclick = async () => {
+  const ig = $("#aInsta").value.trim().replace(/^@+/, "");
+  const antigas = (S.config.ordemCats || []).filter(x => !ORDEM.some(c => norm(c) === norm(x)));
+  const c = { colecao: $("#aColecao").value.trim(), whatsapp: $("#aWhats").value.trim(), instagram: ig ? "@" + ig : "", ordemCats: [...ORDEM, ...antigas] };
+  try { await store.saveConfig(c); S.config = c; fecharAjustes(); render(); toast("Ajustes salvos"); } catch (e) { toast("Não foi possível salvar os ajustes."); }
+};
+document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("#editor").hidden) fecharEditor(true); if (!$("#ajustes").hidden) fecharAjustes(); } });
+
+/* =========================================================
+   PDF INTERATIVO
+   ========================================================= */
+const C = { cat: "#6E5122", cream: "#EBDECA", taupe: "#D0BFA8", gold: "#C8A96A", deep: "#A9823E", ink: "#4A3A22", soft: "#8A7150", paper: "#F4ECDF" };
+const PW = 405, PH = 720;
+
+async function carregarRecursosPDF() {
+  if (FONT_B64) return;
+  const b64 = buf => { let s = "", a = new Uint8Array(buf); for (let i = 0; i < a.length; i += 0x8000) s += String.fromCharCode.apply(null, a.subarray(i, i + 0x8000)); return btoa(s); };
+  const dataURL = blob => new Promise(r => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(blob); });
+  const [ttf, capa, emb] = await Promise.all(["assets/GFSDidot.ttf", "assets/capa.jpg", "assets/emblema.jpg"].map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.blob(); })));
+  FONT_B64 = b64(await ttf.arrayBuffer()); COVER_B64 = await dataURL(capa); EMBLEM_B64 = await dataURL(emb);
+}
+async function ensureJsPDF() {
+  if (window.jspdf) return window.jspdf;
+  await new Promise((res, rej) => { const s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+  return window.jspdf;
+}
+async function bitmapDe(blob) {
+  const url = URL.createObjectURL(blob);
+  try { return await loadImg(url); } finally { setTimeout(() => URL.revokeObjectURL(url), 2000); }
+}
+function recorte(img, modo, max, q = 0.84) {
+  const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+  const c = document.createElement("canvas"), g = c.getContext("2d");
+  if (modo === "quadrado") {
+    const s = Math.min(w, h), o = Math.min(max, s);
+    c.width = c.height = o;
+    g.drawImage(img, (w - s) / 2, (h - s) / 2, s, s, 0, 0, o, o);
+  } else {
+    const k = Math.min(1, max / Math.max(w, h));
+    c.width = Math.round(w * k); c.height = Math.round(h * k);
+    g.drawImage(img, 0, 0, c.width, c.height);
+  }
+  return { data: c.toDataURL("image/jpeg", q), w: c.width, h: c.height };
+}
+function whatsLink(num, msg) {
+  let d = String(num || "").replace(/\D/g, "");
+  if (!d) return null;
+  if (d.length <= 11) d = "55" + d;
+  return `https://wa.me/${d}?text=${encodeURIComponent(msg)}`;
+}
+
+async function gerarPDF() {
+  const pecas = ordenar(S.pecas.filter(p => !p.arquivada));
+  if (!pecas.length) return;
+  const ov = $("#gerando"), bar = $("#gBarra"), txt = $("#gTexto");
+  $("#gTitulo").textContent = "Criando sua vitrine"; $("#gBtns").hidden = true; ov.hidden = false; bar.style.width = "0%";
+  const total = pecas.length + pecas.reduce((n, p) => n + (p.fotos || []).length, 0);
+  let feito = 0;
+  const passo = (t) => { feito++; bar.style.width = Math.min(100, feito / total * 100) + "%"; txt.textContent = t; };
+  try {
+    txt.textContent = "Carregando o estilo do PDF…";
+    await carregarRecursosPDF();
+    const { jsPDF } = await ensureJsPDF();
+    const doc = new jsPDF({ unit: "pt", format: [PW, PH], orientation: "portrait", compress: true });
+    doc.setDisplayMode("fullpage", "single", "UseNone");
+    doc.addFileToVFS("Didot.ttf", FONT_B64); doc.addFont("Didot.ttf", "Didot", "normal"); doc.setFont("Didot", "normal");
+    doc.setProperties({ title: "Le Helê · Vitrine Virtual", subject: S.config.colecao || "Semi joias", author: "Le Helê Semi Joias", creator: "Vitrine Le Helê" });
+
+    const cfg = S.config || {};
+    const zap = cfg.whatsapp ? String(cfg.whatsapp).replace(/\D/g, "") : "";
+    const temContato = !!(zap || cfg.instagram);
+
+    /* --- primitivas de desenho --- */
+    const txtW = (s, size, cs = 0) => { doc.setFontSize(size); return doc.getTextWidth(s) + cs * Math.max(0, s.length - 1); };
+    const T = (s, x, y, { size = 10, color = C.ink, cs = 0, align = "left", bold = false } = {}) => {
+      doc.setFontSize(size); doc.setTextColor(color);
+      const w = txtW(s, size, cs);
+      const xx = align === "center" ? x - w / 2 : align === "right" ? x - w : x;
+      const o = {};
+      if (cs) o.charSpace = cs;
+      if (bold) { doc.setDrawColor(color); doc.setLineWidth(size * 0.045); o.renderingMode = "fillThenStroke"; }
+      doc.text(s, xx, y, Object.keys(o).length ? o : undefined);
+      return { x: xx, w };
+    };
+    const fundo = cor => { doc.setFillColor(cor); doc.rect(0, 0, PW, PH, "F"); };
+    const moldura = (cor = C.gold) => {
+      doc.setDrawColor(cor); doc.setLineWidth(0.6); doc.rect(14, 14, PW - 28, PH - 28, "S");
+      doc.setLineWidth(0.25); doc.rect(18, 18, PW - 36, PH - 36, "S");
+    };
+    const estrela = (cx, cy, r, cor = C.deep) => {
+      const pts = []; for (let i = 0; i < 8; i++) { const a = -Math.PI / 2 + i * Math.PI / 4; const rr = i % 2 ? r * 0.3 : r; pts.push([cx + rr * Math.cos(a), cy + rr * Math.sin(a)]); }
+      const d = pts.slice(1).map((p, i) => [p[0] - pts[i][0], p[1] - pts[i][1]]);
+      doc.setFillColor(cor); doc.lines(d, pts[0][0], pts[0][1], [1, 1], "F", true);
+    };
+    const divisor = (cx, y, w, cor = C.deep) => {
+      doc.setDrawColor(cor); doc.setLineWidth(0.4);
+      doc.line(cx - w / 2, y, cx - 9, y); doc.line(cx + 9, y, cx + w / 2, y);
+      estrela(cx, y, 4.2, cor);
+    };
+    const linhas = (s, size, maxW, maxL) => {
+      doc.setFontSize(size);
+      let ls = doc.splitTextToSize(String(s || ""), maxW);
+      if (maxL && ls.length > maxL) {
+        ls = ls.slice(0, maxL); let last = ls[maxL - 1];
+        while (last.length && doc.getTextWidth(last + "…") > maxW) last = last.slice(0, -1);
+        ls[maxL - 1] = last.replace(/[\s,.;:]+$/, "") + "…";
+      }
+      return ls;
+    };
+    const imgCache = {};
+    const addImg = (key, im, x, y, w, h) => { doc.addImage(im.data, "JPEG", x, y, w, h, key, "NONE"); };
+    const fotoFrame = (x, y, w, h, gap = 4) => { doc.setDrawColor(C.gold); doc.setLineWidth(0.5); doc.rect(x - gap, y - gap, w + gap * 2, h + gap * 2, "S"); };
+
+    /* --- 1. planejamento das páginas --- */
+    const M = 31.5, GAP = 14, colW = (PW - 2 * M - GAP) / 2, cardH = colW + 46, ROWGAP = 16, CATH = 30;
+    const agrupado = []; const cats = [];
+    for (const p of pecas) { const c = catOf(p) || "Outras peças"; if (!cats.includes(c)) cats.push(c); }
+    const usarCats = pecas.some(p => catOf(p));
+    const menu = []; // páginas: [{items:[{type,...}]}]
+    let pg = { items: [] }, y = usarCats ? 176 : 184; const LIM = PH - 48; const menuDe = new Map();
+    menu.push(pg);
+    const novaPagina = () => { pg = { items: [] }; menu.push(pg); y = 74; };
+    for (const c of cats) {
+      const doGrupo = pecas.filter(p => (catOf(p) || "Outras peças") === c);
+      for (let i = 0; i < doGrupo.length; i += 2) {
+        const row = doGrupo.slice(i, i + 2);
+        const precisaCab = usarCats && i === 0;
+        const alt = (precisaCab ? CATH : 0) + cardH;
+        if (y + alt > LIM) novaPagina();
+        if (precisaCab) { pg.items.push({ type: "cat", nome: c, y }); y += CATH; }
+        else if (usarCats && i > 0 && pg.items.length === 0) { pg.items.push({ type: "cat", nome: c + " (cont.)", y }); y += CATH; }
+        row.forEach((p, k) => { pg.items.push({ type: "peca", p, x: M + k * (colW + GAP), y }); menuDe.set(p.id, menu.length - 1); });
+        y += cardH + ROWGAP;
+      }
+    }
+    const MENU_INI = 2, nMenu = menu.length;
+    let prox = MENU_INI + nMenu;
+    const pagPeca = new Map(), pagGal = new Map();
+    pecas.forEach(p => { pagPeca.set(p.id, prox++); const n = (p.fotos || []).length; const g = []; for (let i = 1; i < n; i++) g.push(prox++); pagGal.set(p.id, g); });
+    const PAG_CONTATO = temContato ? prox++ : null;
+
+    /* --- 2. capa --- */
+    fundo(C.taupe);
+    const cw = 470, ch = cw * 864 / 1100;
+    doc.addImage(COVER_B64, "JPEG", (PW - cw) / 2, 128, cw, ch, "capa", "NONE");
+    moldura(C.deep);
+    T("VITRINE VIRTUAL", PW / 2, 62, { size: 8, color: C.deep, cs: 4, align: "center" });
+    divisor(PW / 2, 78, 120);
+    const agora = new Date();
+    const mes = agora.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }).toUpperCase().replace(" DE ", " · ");
+    let yc = 128 + ch + 22;
+    if (cfg.colecao) { T(cfg.colecao, PW / 2, yc, { size: 19, color: C.ink, align: "center" }); yc += 20; }
+    T(mes, PW / 2, yc, { size: 7.5, color: C.deep, cs: 3, align: "center" });
+    T(`${pecas.length} ${pecas.length === 1 ? "PEÇA" : "PEÇAS"} SELECIONADAS`, PW / 2, yc + 15, { size: 7, color: C.soft, cs: 2.5, align: "center" });
+    doc.setDrawColor(C.deep); doc.setLineWidth(0.5);
+    const bw = 214, bx = (PW - bw) / 2, by = PH - 102;
+    doc.setLineWidth(0.9); doc.roundedRect(bx, by, bw, 38, 19, 19, "S");
+    T("ENTRAR NA VITRINE  ›", PW / 2, by + 23, { size: 10, color: C.ink, cs: 2.6, align: "center", bold: true });
+    doc.link(0, 0, PW, PH, { pageNumber: MENU_INI });
+    doc.outline.add(null, "Capa", { pageNumber: 1 });
+    const outMenu = doc.outline.add(null, "Índice", { pageNumber: MENU_INI });
+
+    /* --- 3. índice (menu) --- */
+    const capas = new Map();
+    for (let m = 0; m < nMenu; m++) {
+      doc.addPage([PW, PH], "portrait");
+      fundo(C.cream); moldura();
+      if (m === 0) {
+        doc.addImage(EMBLEM_B64, "JPEG", PW / 2 - 29, 34, 58, 54, "emblema", "NONE");
+        doc.setDrawColor(C.gold); doc.setLineWidth(0.5); doc.circle(PW / 2, 61, 33, "S");
+        T("Vitrine", PW / 2, 126, { size: 30, color: C.ink, align: "center" });
+        T((cfg.colecao || "Le Helê Semi Joias").toUpperCase(), PW / 2, 143, { size: 7.5, color: C.deep, cs: 3, align: "center" });
+        divisor(PW / 2, 157, 150);
+        T("TOQUE EM UMA PEÇA PARA VER OS DETALHES", PW / 2, 172, { size: 5.8, color: C.soft, cs: 2, align: "center" });
+      } else {
+        T("VITRINE", M, 46, { size: 8, color: C.deep, cs: 3.5 });
+        T("LE HELÊ", PW - M, 46, { size: 8, color: C.deep, cs: 3.5, align: "right" });
+        doc.setDrawColor(C.gold); doc.setLineWidth(0.3); doc.line(M, 54, PW - M, 54);
+      }
+      for (const it of menu[m].items) {
+        if (it.type === "cat") {
+          const nome = it.nome.toUpperCase(); const w = txtW(nome, 10.5, 3);
+          T(nome, PW / 2, it.y + 15, { size: 10.5, color: C.cat, cs: 3, align: "center" });
+          doc.setDrawColor(C.gold); doc.setLineWidth(0.35);
+          doc.line(M, it.y + 11, PW / 2 - w / 2 - 12, it.y + 11); doc.line(PW / 2 + w / 2 + 12, it.y + 11, PW - M, it.y + 11);
+          continue;
+        }
+        const p = it.p;
+        passo(`Montando o índice: ${p.nome}`);
+        let im = null;
+        try { const img = await bitmapDe(await store.blob(p.fotos[0])); capas.set(p.id, img); im = recorte(img, "quadrado", 560); } catch (e) { }
+        if (im) addImg("t_" + p.id, im, it.x, it.y, colW, colW);
+        else { doc.setFillColor(C.taupe); doc.rect(it.x, it.y, colW, colW, "F"); }
+        doc.setDrawColor(C.gold); doc.setLineWidth(0.5); doc.rect(it.x, it.y, colW, colW, "S");
+        doc.setDrawColor("#FFFFFF"); doc.setLineWidth(0.4); doc.rect(it.x + 5, it.y + 5, colW - 10, colW - 10, "S");
+        const nl = linhas(p.nome, 11.5, colW - 6, 2);
+        nl.forEach((l, i) => T(l, it.x + colW / 2, it.y + colW + 16 + i * 13, { size: 11.5, color: C.ink, align: "center" }));
+        if (p.codigo) T(p.codigo.toUpperCase(), it.x + colW / 2, it.y + colW + 16 + nl.length * 13 + 1, { size: 6.5, color: C.deep, cs: 1.8, align: "center" });
+        doc.link(it.x, it.y, colW, cardH - 4, { pageNumber: pagPeca.get(p.id) });
+      }
+      // navegação do índice: uma página por vez, só pelos botões
+      const FY = PH - 36, navOpt = { size: 9, color: C.deep, cs: 2, bold: true };
+      const esq = m === 0 ? ["‹  CAPA", 1] : ["‹  ANTERIOR", MENU_INI + m - 1];
+      const rE = T(esq[0], M, FY, navOpt); doc.link(rE.x - 10, FY - 16, rE.w + 20, 26, { pageNumber: esq[1] });
+      const dir = m < nMenu - 1 ? ["PRÓXIMA  ›", MENU_INI + m + 1] : (temContato ? ["ATENDIMENTO  ›", PAG_CONTATO] : null);
+      if (dir) { const rD = T(dir[0], PW - M, FY, { ...navOpt, align: "right" }); doc.link(rD.x - 10, FY - 16, rD.w + 20, 26, { pageNumber: dir[1] }); }
+      if (nMenu > 1) T(`${m + 1} / ${nMenu}`, PW / 2, FY, { size: 8, color: C.soft, cs: 1.5, align: "center" });
+    }
+
+    /* --- 4. páginas das peças --- */
+    for (let idx = 0; idx < pecas.length; idx++) {
+      const p = pecas[idx]; const fotos = p.fotos || [];
+      const minhaPag = pagPeca.get(p.id), gal = pagGal.get(p.id);
+      const outP = doc.outline.add(outMenu, p.nome, { pageNumber: minhaPag });
+
+      // carrega fotos
+      const imgs = [];
+      for (let i = 0; i < fotos.length; i++) {
+        passo(`Preparando ${p.nome} · foto ${i + 1} de ${fotos.length}`);
+        try { const img = (i === 0 && capas.get(p.id)) || await bitmapDe(await store.blob(fotos[i])); imgs.push(img); } catch (e) { imgs.push(null); }
+      }
+      const main = imgs[0] ? recorte(imgs[0], "inteira", 1150, 0.84) : null;
+
+      doc.addPage([PW, PH], "portrait");
+      fundo(C.cream); moldura();
+      // navegação superior
+      const back = T("‹  ÍNDICE", 30, 44, { size: 11.5, color: C.deep, cs: 2.2, bold: true });
+      doc.link(18, 24, back.w + 24, 28, { pageNumber: MENU_INI + (menuDe.get(p.id) || 0) });
+      const cont = `${String(idx + 1).padStart(2, "0")} / ${String(pecas.length).padStart(2, "0")}`;
+      T(cont, PW / 2, 44, { size: 7.5, color: C.soft, cs: 1.5, align: "center" });
+      const ant = idx > 0 ? pagPeca.get(pecas[idx - 1].id) : null, seg = idx < pecas.length - 1 ? pagPeca.get(pecas[idx + 1].id) : null;
+      const rNext = T("›", PW - 30, 49, { size: 30, color: seg ? C.deep : C.taupe, align: "right", bold: !!seg });
+      const rPrev = T("‹", PW - 76, 49, { size: 30, color: ant ? C.deep : C.taupe, align: "right", bold: !!ant });
+      if (seg) doc.link(PW - 58, 20, 42, 38, { pageNumber: seg });
+      if (ant) doc.link(PW - 104, 20, 42, 38, { pageNumber: ant });
+
+      // cálculo de espaço para a descrição
+      const DESC_W = 300, DESC_S = 10, DESC_LH = 14.5;
+      const descLs = p.descricao ? linhas(p.descricao, DESC_S, DESC_W) : [];
+      const nomeLs = linhas(p.nome, 22, 320, 2);
+      const url = zap ? whatsLink(zap, `Olá! Vi a vitrine Le Helê e tenho interesse na peça ${p.nome}${p.codigo ? " (" + p.codigo + ")" : ""}.`) : null;
+      const temThumbs = fotos.length > 1;
+      let fotoMax = 292 - Math.max(0, descLs.length - 3) * DESC_LH - (nomeLs.length - 1) * 25;
+      fotoMax = Math.max(215, Math.min(292, fotoMax));
+      const boxW = PW - 2 * 36, top = 64;
+      let fw = boxW, fh = boxW;
+      if (main) { const k = Math.min(boxW / main.w, fotoMax / main.h); fw = main.w * k; fh = main.h * k; } else { fh = fotoMax; }
+      const fx = (PW - fw) / 2;
+      if (main) addImg("m_" + p.id, main, fx, top, fw, fh); else { doc.setFillColor(C.taupe); doc.rect(fx, top, fw, fh, "F"); }
+      fotoFrame(fx, top, fw, fh, 5);
+      let yy = top + fh + 5;
+      if (temThumbs) {
+        const n = Math.min(fotos.length, 7), s = 36, g = 8, tw = n * s + (n - 1) * g; let tx = (PW - tw) / 2; const ty = yy + 12;
+        for (let i = 0; i < n; i++) {
+          if (imgs[i]) { const tImg = recorte(imgs[i], "quadrado", 180, 0.8); addImg(`s_${p.id}_${i}`, tImg, tx, ty, s, s); }
+          else { doc.setFillColor(C.taupe); doc.rect(tx, ty, s, s, "F"); }
+          doc.setDrawColor(i === 0 ? C.deep : C.gold); doc.setLineWidth(i === 0 ? 1 : 0.4); doc.rect(tx, ty, s, s, "S");
+          if (i > 0) doc.link(tx, ty, s, s, { pageNumber: gal[i - 1] });
+          tx += s + g;
+        }
+        yy = ty + s + 4;
+        T("TOQUE NAS MINIATURAS PARA AMPLIAR", PW / 2, yy + 8, { size: 5.5, color: C.soft, cs: 1.6, align: "center" });
+        yy += 10;
+      }
+      let ty = yy + 26;
+      if (catOf(p)) { T(catOf(p).toUpperCase(), PW / 2, ty, { size: 9.5, color: C.cat, cs: 3, align: "center" }); ty += 26; } else ty += 6;
+      nomeLs.forEach((l, i) => T(l, PW / 2, ty + i * 25, { size: 22, color: C.ink, align: "center" }));
+      ty += (nomeLs.length - 1) * 25 + 16;
+      if (p.codigo) { T("REF. " + p.codigo.toUpperCase(), PW / 2, ty, { size: 7, color: C.soft, cs: 2, align: "center" }); ty += 14; }
+      divisor(PW / 2, ty, 110); ty += 26;
+      T(brl(p.valor) || "Sob consulta", PW / 2, ty, { size: p.valor != null ? 21 : 15, color: C.deep, align: "center" });
+      ty += 17;
+      if (p.banho) {
+        const bt = "BANHO · " + p.banho.toUpperCase().replace(/^BANHO\s+/, ""); let bs = 9.5;
+        while (bs > 6.5 && txtW(bt, bs, 2) > 330) bs -= 0.5;
+        T(bt, PW / 2, ty + 2, { size: bs, color: C.ink, cs: 2, align: "center" }); ty += 17;
+      }
+      ty += 12;
+      const limite = url ? PH - 110 : PH - 44;
+      const cabem = Math.max(0, Math.floor((limite - ty) / DESC_LH) + 1);
+      if (descLs.length) {
+        const ls = descLs.length > cabem ? linhas(p.descricao, DESC_S, DESC_W, cabem) : descLs;
+        ls.forEach((l, i) => T(l, PW / 2, ty + i * DESC_LH, { size: DESC_S, color: C.ink, align: "center" }));
+      }
+      if (url) {
+        const w = 222, h = 38, x = (PW - w) / 2, yb = PH - 92;
+        doc.setFillColor(C.deep); doc.roundedRect(x, yb, w, h, 19, 19, "F");
+        T("QUERO ESTA PEÇA", PW / 2, yb + 23, { size: 10, color: C.paper, cs: 2.8, align: "center", bold: true });
+        doc.link(x, yb, w, h, { url });
+        T("ATENDIMENTO PELO WHATSAPP", PW / 2, yb + h + 12, { size: 5.5, color: C.soft, cs: 1.8, align: "center" });
+      }
+
+      // galeria
+      for (let i = 1; i < fotos.length; i++) {
+        doc.addPage([PW, PH], "portrait");
+        fundo(C.taupe); moldura(C.deep);
+        const b = T("‹  VOLTAR À PEÇA", 30, 43, { size: 9, color: C.ink, cs: 2.2, bold: true });
+        doc.link(18, 24, b.w + 24, 28, { pageNumber: minhaPag });
+        T(`FOTO ${i + 1} DE ${fotos.length}`, PW - 30, 42, { size: 7, color: C.ink, cs: 1.8, align: "right" });
+        const gl = linhas(p.nome, 17, 320, 1)[0];
+        T(gl, PW / 2, 80, { size: 17, color: C.ink, align: "center" });
+        divisor(PW / 2, 94, 90);
+        const gimg = imgs[i] ? recorte(imgs[i], "inteira", 1150, 0.84) : null;
+        const maxW = PW - 64, maxH = PH - 118 - 92;
+        let gw = maxW, gh = maxH;
+        if (gimg) { const k = Math.min(maxW / gimg.w, maxH / gimg.h); gw = gimg.w * k; gh = gimg.h * k; }
+        const gx = (PW - gw) / 2, gy = 118 + (maxH - gh) / 2;
+        if (gimg) addImg(`g_${p.id}_${i}`, gimg, gx, gy, gw, gh); else { doc.setFillColor(C.cream); doc.rect(gx, gy, gw, gh, "F"); }
+        doc.setDrawColor(C.cream); doc.setLineWidth(0.6); doc.rect(gx - 5, gy - 5, gw + 10, gh + 10, "S");
+        const prevPg = i === 1 ? minhaPag : gal[i - 2], nextPg = i < fotos.length - 1 ? gal[i] : null;
+        const ra = T("‹  ANTERIOR", 30, PH - 42, { size: 9, color: C.ink, cs: 2, bold: true }); doc.link(18, PH - 60, ra.w + 24, 30, { pageNumber: prevPg });
+        if (nextPg) { const rp = T("PRÓXIMA  ›", PW - 30, PH - 42, { size: 9, color: C.ink, cs: 2, align: "right", bold: true }); doc.link(rp.x - 12, PH - 60, rp.w + 24, 30, { pageNumber: nextPg }); }
+        else { const rp = T("VOLTAR À PEÇA  ›", PW - 30, PH - 42, { size: 9, color: C.ink, cs: 2, align: "right", bold: true }); doc.link(rp.x - 12, PH - 60, rp.w + 24, 30, { pageNumber: minhaPag }); }
+      }
+    }
+
+    /* --- 5. atendimento --- */
+    if (temContato) {
+      doc.addPage([PW, PH], "portrait");
+      fundo(C.taupe); moldura(C.deep);
+      doc.addImage(EMBLEM_B64, "JPEG", PW / 2 - 55, 150, 110, 103, "emblema", "NONE");
+      T("Atendimento", PW / 2, 300, { size: 28, color: C.ink, align: "center" });
+      divisor(PW / 2, 318, 130);
+      let yk = 360;
+      if (zap) {
+        T("WHATSAPP", PW / 2, yk, { size: 7.5, color: C.deep, cs: 3, align: "center" });
+        const r = T(cfg.whatsapp, PW / 2, yk + 24, { size: 17, color: C.ink, align: "center" });
+        doc.link(r.x - 10, yk + 6, r.w + 20, 26, { url: whatsLink(zap, "Olá! Vi a vitrine Le Helê e gostaria de atendimento.") });
+        yk += 64;
+      }
+      if (cfg.instagram) {
+        T("INSTAGRAM", PW / 2, yk, { size: 7.5, color: C.deep, cs: 3, align: "center" });
+        const handle = cfg.instagram.replace(/^@/, "");
+        const r = T("@" + handle, PW / 2, yk + 24, { size: 17, color: C.ink, align: "center" });
+        doc.link(r.x - 10, yk + 6, r.w + 20, 26, { url: "https://instagram.com/" + encodeURIComponent(handle) });
+        yk += 64;
+      }
+      T("Para a mais bela das belas.", PW / 2, PH - 110, { size: 13, color: C.deep, align: "center" });
+      const rb = T("‹  VOLTAR AO ÍNDICE", PW / 2, PH - 60, { size: 9, color: C.ink, cs: 2.2, align: "center", bold: true });
+      doc.link(rb.x - 12, PH - 78, rb.w + 24, 30, { pageNumber: MENU_INI });
+      doc.outline.add(null, "Atendimento", { pageNumber: PAG_CONTATO });
+    }
+
+    txt.textContent = "Finalizando o arquivo…"; bar.style.width = "100%";
+    await sleep(30);
+    const blob = doc.output("blob");
+    const base = `Vitrine Le Hele ${agora.toISOString().slice(0, 10)}`;
+    window.__ultimoPDF = blob;
+    await entregar(blob, base + ".pdf");
+  } catch (e) {
+    console.error(e);
+    $("#gTitulo").textContent = "Não deu certo";
+    txt.textContent = "O PDF não pôde ser criado. Verifique a conexão e tente novamente.";
+    mostrarBotoes([["Fechar", () => ov.hidden = true, false]]);
+  }
+}
+function mostrarBotoes(lista) {
+  const b = $("#gBtns"); b.innerHTML = ""; b.hidden = false;
+  lista.forEach(([t, fn, prim]) => { const x = document.createElement("button"); x.className = "btn" + (prim ? " primary" : ""); x.textContent = t; x.onclick = fn; b.appendChild(x); });
+}
+function baixar(blob, nome) {
+  const url = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href = url; a.download = nome; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+async function compartilharOuBaixar(blob, nome, tipo) {
+  const f = new File([blob], nome, { type: tipo });
+  if (navigator.canShare && navigator.canShare({ files: [f] })) {
+    try { await navigator.share({ files: [f], title: nome }); return "compartilhado"; }
+    catch (e) { if (e && e.name === "AbortError") return "cancelado"; }
+  }
+  baixar(blob, nome); return "baixado";
+}
+async function entregar(blob, nome) {
+  const ov = $("#gerando");
+  const mb = (blob.size / 1048576).toFixed(1).replace(".", ",") + " MB";
+  const nAt = S.pecas.filter(p => !p.arquivada).length;
+  $("#gTitulo").textContent = "PDF pronto";
+  $("#gTexto").textContent = `${nAt} ${nAt === 1 ? "peça" : "peças"} · ${mb}. Bom para imprimir ou para quem prefere arquivo. Para as clientes, o link da vitrine online já mostra tudo atualizado.`;
+  mostrarBotoes([
+    ["Compartilhar / salvar PDF", async () => { const r = await compartilharOuBaixar(blob, nome, "application/pdf"); if (r !== "cancelado") toast(r === "baixado" ? "PDF baixado" : "PDF compartilhado"); }, true],
+    ["Fechar", () => ov.hidden = true, false]
+  ]);
+}
+
+/* ---------- cópia de segurança ---------- */
+const blobParaDataURL = blob => new Promise(r => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(blob); });
+async function dataURLParaBlob(d) { return (await fetch(d)).blob(); }
+function progresso(titulo, texto, pct) {
+  $("#gerando").hidden = false; $("#gBtns").hidden = true;
+  $("#gTitulo").textContent = titulo; $("#gTexto").textContent = texto; $("#gBarra").style.width = Math.round(pct * 100) + "%";
+}
+$("#btnBackup").onclick = async () => {
+  fecharAjustes();
+  try {
+    const pecas = ordenar(S.pecas), total = pecas.reduce((n, p) => n + p.fotos.length, 0) || 1; let k = 0;
+    const out = { formato: "lehele-backup", versao: 1, geradoEm: new Date().toISOString(), config: { colecao: S.config.colecao, whatsapp: S.config.whatsapp, instagram: S.config.instagram, ordemCats: S.config.ordemCats }, pecas: [] };
+    for (const p of pecas) {
+      const fotos = [];
+      for (const f of p.fotos) { progresso("Preparando a cópia", `${p.nome} · foto ${fotos.length + 1}`, k++ / total); try { fotos.push(await blobParaDataURL(await store.blob(f))); } catch (e) { } }
+      out.pecas.push({ nome: p.nome, codigo: p.codigo, categoria: p.categoria, banho: p.banho, valor: p.valor, descricao: p.descricao, arquivada: p.arquivada, criadoEm: p.criadoEm, atualizadoEm: p.atualizadoEm, fotos });
+    }
+    const blob = new Blob([JSON.stringify(out)], { type: "application/json" });
+    const nome = `lehele-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    progresso("Cópia pronta", `${pecas.length} peças · ${(blob.size / 1048576).toFixed(1).replace(".", ",")} MB. Guarde este arquivo em lugar seguro.`, 1);
+    mostrarBotoes([["Salvar cópia", () => compartilharOuBaixar(blob, nome, "application/json"), true], ["Fechar", () => $("#gerando").hidden = true, false]]);
+  } catch (e) { console.error(e); progresso("Não deu certo", "A cópia não pôde ser criada. Tente de novo.", 0); mostrarBotoes([["Fechar", () => $("#gerando").hidden = true, false]]); }
+};
+$("#btnImportar").onclick = () => $("#arqImport").click();
+$("#arqImport").addEventListener("change", async e => {
+  const file = e.target.files[0]; e.target.value = "";
+  if (!file) return;
+  fecharAjustes();
+  let dados;
+  try { dados = JSON.parse(await file.text()); if (dados.formato !== "lehele-backup" || !Array.isArray(dados.pecas)) throw new Error("formato"); }
+  catch (err) { toast("Este arquivo não é uma cópia da vitrine Le Helê."); return; }
+  const chave = p => LH.norm(p.nome) + "|" + LH.norm(p.codigo);
+  const existentes = new Set(S.pecas.map(chave));
+  const novas = dados.pecas.filter(p => p && p.nome && !existentes.has(chave(p)));
+  const total = novas.reduce((n, p) => n + (p.fotos || []).length, 0) || 1; let k = 0, ok = 0, falhas = 0;
+  try {
+    for (const p of novas) {
+      const refs = [];
+      for (const d of (p.fotos || [])) {
+        progresso("Importando peças", `${p.nome} · foto ${refs.length + 1}`, k++ / total);
+        try { refs.push(await store.upload(await dataURLParaBlob(d))); } catch (err) { falhas++; }
+      }
+      if (!refs.length) { falhas++; continue; }
+      await store.savePeca(null, { nome: p.nome, codigo: p.codigo || "", categoria: p.categoria || "", banho: p.banho || "", valor: p.valor ?? null, descricao: p.descricao || "", arquivada: !!p.arquivada, criadoEm: p.criadoEm || Date.now(), fotos: refs });
+      ok++;
+    }
+    const c = dados.config || {};
+    const atual = S.config;
+    const mesclado = { colecao: atual.colecao || c.colecao || "", whatsapp: atual.whatsapp || c.whatsapp || "", instagram: atual.instagram || c.instagram || "", ordemCats: (atual.ordemCats && atual.ordemCats.length) ? atual.ordemCats : (c.ordemCats || []) };
+    await store.saveConfig(mesclado); S.config = mesclado;
+    await store.recarregar();
+    const pulei = dados.pecas.length - novas.length;
+    progresso("Importação concluída", `${ok} ${ok === 1 ? "peça importada" : "peças importadas"}${pulei ? `, ${pulei} já existiam` : ""}${falhas ? `, ${falhas} com problema` : ""}.`, 1);
+  } catch (err) {
+    console.error(err);
+    progresso("Importação interrompida", `${ok} peças importadas antes do problema. Rode de novo: as que já entraram serão puladas.`, k / total);
+  }
+  mostrarBotoes([["Fechar", () => $("#gerando").hidden = true, true]]);
+});
+
+$("#btnPdf").onclick = gerarPDF;
+
+boot();
+</script>
+</body>
+</html>
