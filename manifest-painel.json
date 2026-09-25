@@ -1,0 +1,13 @@
+{
+  "name": "Painel Le Helê",
+  "short_name": "Painel Le Helê",
+  "start_url": "painel.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#EBDECA",
+  "theme_color": "#EBDECA",
+  "icons": [
+    { "src": "assets/icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icone-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

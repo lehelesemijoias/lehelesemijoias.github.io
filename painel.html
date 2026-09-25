@@ -8,6 +8,11 @@
 <meta name="theme-color" content="#EBDECA">
 <link rel="icon" href="assets/icone-192.png">
 <link rel="apple-touch-icon" href="assets/icone-192.png">
+<link rel="manifest" href="manifest-painel.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Painel Le Helê">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=GFS+Didot&family=Jost:wght@300;400;500&display=swap">
@@ -184,6 +189,8 @@ img{max-width:100%}
 .gate-in p{margin:0;color:var(--ink-soft);font-size:14px}
 .gate-in form{display:grid;gap:12px;text-align:left;margin-top:8px}
 .gate-in .erro{color:var(--danger);font-size:13px;min-height:18px;text-align:center}
+.manter{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--ink);cursor:pointer;padding:2px 0}
+.manter input{width:20px;height:20px;accent-color:var(--gold-deep);margin:0;flex:none}
 .gate-in code{background:var(--surface-2);padding:2px 6px;border-radius:6px;font-size:13px}
 </style>
 </head>
@@ -327,8 +334,9 @@ img{max-width:100%}
     <div id="gateLogin" hidden>
       <p>Painel de cadastro da vitrine</p>
       <form id="fLogin" novalidate>
-        <div class="field"><label for="lEmail">E-mail</label><input id="lEmail" type="email" autocomplete="username" inputmode="email" required></div>
-        <div class="field"><label for="lSenha">Senha</label><input id="lSenha" type="password" autocomplete="current-password" required></div>
+        <div class="field"><label for="lEmail">E-mail</label><input id="lEmail" name="email" type="email" autocomplete="username" inputmode="email" required></div>
+        <div class="field"><label for="lSenha">Senha</label><input id="lSenha" name="password" type="password" autocomplete="current-password" required></div>
+        <label class="manter" for="lManter"><input type="checkbox" id="lManter" checked>Manter conectado neste aparelho</label>
         <button class="btn primary" type="submit" id="lEntrar">Entrar</button>
         <button class="linkbtn" type="button" id="lEsqueci" style="justify-self:center">Esqueci minha senha</button>
       </form>
@@ -341,6 +349,10 @@ img{max-width:100%}
         <button class="btn primary" type="submit">Salvar nova senha</button>
       </form>
       <p class="erro" id="nErro" aria-live="polite"></p>
+    </div>
+    <div id="gateErro" hidden>
+      <p>Não foi possível falar com a vitrine agora. Verifique a internet e tente de novo. Seu acesso continua salvo neste aparelho.</p>
+      <button class="btn" type="button" id="gTentar">Tentar de novo</button>
     </div>
     <div id="gateSemAcesso" hidden>
       <p>Este e-mail entrou, mas não tem permissão para mexer na vitrine. Peça para incluir o e-mail na lista de administradores (tabela <code>admins</code> do Supabase).</p>
@@ -456,7 +468,7 @@ async function medir(blob) {
 let sb = null;
 function mostrarGate(qual) {
   $("#gate").hidden = !qual;
-  ["gateCarregando", "gateConfig", "gateLogin", "gateNovaSenha", "gateSemAcesso"].forEach(id => $("#" + id).hidden = id !== qual);
+  ["gateCarregando", "gateConfig", "gateLogin", "gateNovaSenha", "gateSemAcesso", "gateErro"].forEach(id => $("#" + id).hidden = id !== qual);
   if (qual === "gateLogin") setTimeout(() => $("#lEmail").focus(), 50);
 }
 function setStatus() {
@@ -476,8 +488,11 @@ function prepararCompartilhar() {
 let iniciado = false;
 async function entrarNoPainel(session) {
   S.email = (session && session.user && session.user.email) || "";
-  const { data: admin, error } = await sb.rpc("is_admin");
-  if (error || !admin) { mostrarGate("gateSemAcesso"); return; }
+  let r = await sb.rpc("is_admin");
+  if (r.error) { await sleep(1500); r = await sb.rpc("is_admin"); }
+  if (r.error) { console.error(r.error); mostrarGate("gateErro"); return; }
+  if (!r.data) { mostrarGate("gateSemAcesso"); return; }
+  if (LH.manterConectado() && navigator.storage && navigator.storage.persist) { try { navigator.storage.persist(); } catch (e) { } }
   mostrarGate(null);
   $("#btnSair").hidden = false; $("#btnAjustes").hidden = false;
   $("#contaEmail").textContent = S.email ? "Conectado como " + S.email : "";
@@ -512,8 +527,13 @@ $("#fLogin").addEventListener("submit", async e => {
   $("#lErro").textContent = "";
   if (!email || !senha) { $("#lErro").textContent = "Preencha e-mail e senha."; return; }
   const b = $("#lEntrar"); b.disabled = true; b.textContent = "Entrando…";
+  try { localStorage.setItem("lehele-manter", $("#lManter").checked ? "1" : "0"); } catch (err) { }
   const { error } = await sb.auth.signInWithPassword({ email, password: senha });
   b.disabled = false; b.textContent = "Entrar";
+  if (!error && window.PasswordCredential && navigator.credentials) {
+    // oferece salvar a senha no gerenciador do navegador (Chrome/Android)
+    try { navigator.credentials.store(new PasswordCredential({ id: email, password: senha, name: email })).catch(() => { }); } catch (err) { }
+  }
   if (error) $("#lErro").textContent = /invalid/i.test(error.message || "") ? "E-mail ou senha incorretos." : "Não foi possível entrar. Verifique a internet.";
 });
 $("#lEsqueci").onclick = async () => {
@@ -533,6 +553,8 @@ $("#fNovaSenha").addEventListener("submit", async e => {
   toast("Senha alterada"); entrarNoPainel(data.session);
 });
 $("#btnSair").onclick = () => sb.auth.signOut();
+$("#gTentar").onclick = () => location.reload();
+try { $("#lManter").checked = localStorage.getItem("lehele-manter") !== "0"; } catch (e) { }
 $("#gSair").onclick = () => sb.auth.signOut();
 
 /* ---------- lista ---------- */
