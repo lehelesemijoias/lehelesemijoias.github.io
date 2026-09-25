@@ -7,12 +7,25 @@
     (!!CFG.SUPABASE_URL && !/SEU-PROJETO/.test(CFG.SUPABASE_URL) &&
      !!CFG.SUPABASE_ANON_KEY && !/COLE-AQUI/.test(CFG.SUPABASE_ANON_KEY));
 
+  // "Manter conectado": com a opção ligada a sessão fica guardada no aparelho (localStorage);
+  // desligada, só vale enquanto a página estiver aberta (sessionStorage).
+  const manterConectado = () => { try { return localStorage.getItem("lehele-manter") !== "0"; } catch (e) { return true; } };
+  const armazenamento = {
+    getItem: k => { try { const v = localStorage.getItem(k); return v != null ? v : sessionStorage.getItem(k); } catch (e) { return null; } },
+    setItem: (k, v) => {
+      try {
+        if (manterConectado()) { localStorage.setItem(k, v); sessionStorage.removeItem(k); }
+        else { sessionStorage.setItem(k, v); localStorage.removeItem(k); }
+      } catch (e) { }
+    },
+    removeItem: k => { try { localStorage.removeItem(k); sessionStorage.removeItem(k); } catch (e) { } }
+  };
   let cliente = null;
   function criarCliente() {
     if (cliente) return cliente;
     cliente = window.__MOCK_SUPABASE ||
-      window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {
-        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+      window.supabase.createClient(String(CFG.SUPABASE_URL).replace(/\/(rest|auth)\/v1\/?$/, "").replace(/\/+$/, ""), CFG.SUPABASE_ANON_KEY, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: armazenamento }
       });
     return cliente;
   }
@@ -80,5 +93,5 @@
     return criarCliente().storage.from("fotos").getPublicUrl(path).data.publicUrl;
   }
 
-  window.LH = { CFG, configurado, criarCliente, esc, brl, mesAno, catOf, norm, rankCat, ordenarCats, ordenar, whatsLink, rowToPeca, pecaToRow, rowToConfig, configToRow, fotoURL };
+  window.LH = { CFG, configurado, criarCliente, manterConectado, esc, brl, mesAno, catOf, norm, rankCat, ordenarCats, ordenar, whatsLink, rowToPeca, pecaToRow, rowToConfig, configToRow, fotoURL };
 })();
