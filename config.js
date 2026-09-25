@@ -6,11 +6,11 @@
    ============================================================ */
 window.LEHELE = {
   // Supabase > Project Settings > Data API > Project URL
-  SUPABASE_URL: "https://mtyohrgwfvoqlhlbufmx.supabase.co/rest/v1/",
+  SUPABASE_URL: "https://mtyohrgwfvoqlhlbufmx.supabase.co",
 
   // Supabase > Project Settings > API Keys > Publishable key (ou "anon public")
   SUPABASE_ANON_KEY: "sb_publishable_6k0oZJu3hwu_fJhptqwLaw_3FQ0CI9e",
 
   // Endereço da vitrine (com a barra no final)
-  SITE_URL: "https://lehele.github.io/"
+  SITE_URL: "https://lehelesemijoias.github.io/"
 };
