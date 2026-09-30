@@ -185,6 +185,7 @@ img{max-width:100%}
 /* abas e acessos */
 .abas{display:flex;gap:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:4px;margin:0 0 18px}
 .abas button{flex:1;min-height:42px;border:none;border-radius:999px;background:transparent;font-size:12px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft)}
+.abas .aba-link{flex:1;min-height:42px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft);text-decoration:none}
 .abas button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(58,46,31,.14)}
 .periodo{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
 .periodo button{border:1px solid var(--line);background:transparent;border-radius:999px;min-height:38px;padding:0 16px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft)}
@@ -256,6 +257,7 @@ img{max-width:100%}
   <nav class="abas" id="abas" role="tablist" aria-label="Seções do painel" hidden>
     <button type="button" role="tab" id="tabPecas" aria-selected="true" aria-controls="abaPecas">Peças</button>
     <button type="button" role="tab" id="tabAcessos" aria-selected="false" aria-controls="abaAcessos">Acessos</button>
+    <a class="aba-link" href="gestao.html" id="tabGestao">Gestão</a>
   </nav>
   <section id="abaPecas" role="tabpanel" aria-labelledby="tabPecas">
   <section class="share" id="shareBox" hidden>
@@ -574,6 +576,7 @@ async function entrarNoPainel(session) {
   try {
     store = SupaStore(sb);
     await store.init(pecas => { S.pecas = pecas; S.ready = true; render(); }, cfg => { S.config = cfg || {}; if (S.ready) render(); });
+    if (location.hash === "#acessos") mostrarAba("acessos");   // vindo da Gestão
   } catch (e) {
     console.error(e);
     $("#lista").innerHTML = '<div class="empty"><h3>Não foi possível carregar</h3><p class="hint">Verifique a internet e se o script do Supabase foi executado (guia, passo 2).</p></div>';

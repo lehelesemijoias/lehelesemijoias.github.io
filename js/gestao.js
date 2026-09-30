@@ -66,25 +66,33 @@
     r = r || {};
     const l = r.listas || {};
     const lista = k => Array.isArray(l[k]) && l[k].length ? l[k] : LISTAS_PADRAO[k];
+    const tx = (r.taxas && Object.keys(r.taxas).length) ? r.taxas : { "Pix": 0, "Dinheiro": 0, "Cartão de Débito": 0.0075, "Cartão de Crédito": 0.0269, "Cartão de Crédito Parcelado": 0.0899 };
     return {
       mult: r.multiplicador != null ? Number(r.multiplicador) : 2.75,
       mkt: r.taxa_marketplace != null ? Number(r.taxa_marketplace) : 0,
       emb: r.embalagem != null ? Number(r.embalagem) : 250,
       formaPreco: r.forma_taxa_preco || "Cartão de Crédito",
-      taxas: (r.taxas && Object.keys(r.taxas).length) ? r.taxas : { "Pix": 0, "Dinheiro": 0, "Cartão de Débito": 0.0075, "Cartão de Crédito": 0.0269, "Cartão de Crédito Parcelado": 0.0899 },
+      taxas: comPix(tx),
+      minimo: r.estoque_minimo != null ? Number(r.estoque_minimo) : 0,
       listas: { canais: lista("canais"), regioes: lista("regioes"), tiposPerda: lista("tiposPerda"), categoriasFin: lista("categoriasFin") },
       plano: Array.isArray(r.plano_trafego) && r.plano_trafego.length ? r.plano_trafego : PLANO_PADRAO
     };
   }
+  // Pix é sempre uma forma de pagamento (e vem primeiro na lista)
+  function comPix(t) { const o = { "Pix": Number((t || {}).Pix || 0) }; Object.keys(t || {}).forEach(k => { if (k !== "Pix") o[k] = t[k]; }); return o; }
   const cfgParaLinha = c => ({
     multiplicador: c.mult, taxa_marketplace: c.mkt, embalagem: c.emb, forma_taxa_preco: c.formaPreco,
-    taxas: c.taxas, listas: c.listas, plano_trafego: c.plano, atualizado_em: new Date().toISOString()
+    taxas: comPix(c.taxas), listas: c.listas, plano_trafego: c.plano, estoque_minimo: c.minimo, atualizado_em: new Date().toISOString()
   });
   const formas = () => [...Object.keys(G.cfg.taxas), "Marketplace"];
   const taxaDe = forma => forma === "Marketplace" ? G.cfg.mkt : Number(G.cfg.taxas[forma] || 0);
   const arred = x => Math.round(Math.round(x * 1e4) / 1e4); // evita 0,4999… virar para baixo
   const precoSugerido = custo => custo == null ? null : arred(custo * G.cfg.mult * (1 + G.cfg.mkt + taxaDe(G.cfg.formaPreco)) + G.cfg.emb);
   const custoDe = id => { const c = G.custos.get(id); return c && c.custo != null ? c.custo : null; };
+  const qtdDe = id => { const c = G.custos.get(id); return c && c.quantidade != null ? c.quantidade : null; };
+  // situação do estoque de uma peça: null = quantidade não informada
+  const situacao = q => q == null ? null : q <= 0 ? "esgotada" : q <= G.cfg.minimo ? "acabando" : "ok";
+  const un = q => q == null ? "—" : `${q} ${Math.abs(q) === 1 ? "unidade" : "unidades"}`;
   const pecaDe = id => G.pecas.find(p => p.id === id);
   const fornDe = id => G.forn.find(f => f.id === id);
 
@@ -124,9 +132,16 @@
     if (error) throw error; return data.id;
   }
   async function apagar(tabela, id) { const { error } = await sb.from(tabela).delete().eq("id", id); if (error) throw error; }
-  async function salvarCusto(pecaId, custo, fornecedorId) {
-    const { error } = await sb.from("pecas_custos").upsert({ peca_id: pecaId, custo, fornecedor_id: fornecedorId || null, atualizado_em: new Date().toISOString() }, { onConflict: "peca_id" });
+  async function salvarCusto(pecaId, custo, fornecedorId, quantidade) {
+    const { error } = await sb.from("pecas_custos").upsert({ peca_id: pecaId, custo, fornecedor_id: fornecedorId || null, quantidade: quantidade ?? null, atualizado_em: new Date().toISOString() }, { onConflict: "peca_id" });
     if (error) throw error;
+  }
+  // soma/tira unidades do estoque (peça sem quantidade informada fica sem controle)
+  async function mover(pecaId, delta) {
+    if (!pecaId || !delta || qtdDe(pecaId) == null) return;
+    const { error } = await sb.rpc("ajustar_estoque", { p_peca: pecaId, p_delta: delta });
+    if (error) throw error;
+    G.custos.get(pecaId).quantidade += delta;
   }
   async function salvarCfg() {
     const { error } = await sb.from("gestao_config").update(cfgParaLinha(G.cfg)).eq("id", 1);
@@ -259,7 +274,7 @@
     if (!FM.calcular) { $("#fmCalc").hidden = true; return; }
     const linhas = FM.calcular(Object.assign({}, FM.vals, lerForm()));
     $("#fmCalc").hidden = !linhas.length;
-    $("#fmCalc").innerHTML = linhas.map(l => `<div class="${l.destaque ? "dest" : ""}"><span>${esc(l.r)}</span><b>${esc(l.v)}</b></div>`).join("");
+    $("#fmCalc").innerHTML = linhas.filter(Boolean).map(l => `<div class="${l.destaque ? "dest" : ""}${l.alerta ? " alerta" : ""}"><span>${esc(l.r)}</span><b>${esc(l.v)}</b></div>`).join("");
   }
   function abrirForm(o) {
     FM = Object.assign({ vals: {} }, o);
@@ -359,7 +374,10 @@
     const prej = noPeriodo(G.perdas).reduce((s, p) => s + contaPerda(p).prejuizo, 0);
     const finP = noPeriodo(G.fin), ent = finP.filter(r => r.tipo === "entrada").reduce((s, r) => s + r.valor, 0), sai = finP.filter(r => r.tipo === "saida").reduce((s, r) => s + r.valor, 0);
     const trP = noPeriodo(G.traf), inv = trP.reduce((s, r) => s + (r.investido || 0), 0), recT = trP.reduce((s, r) => s + (r.receita || 0), 0);
-    const ativas = G.pecas.filter(p => !p.arquivada).length;
+    const ativasL = G.pecas.filter(p => !p.arquivada), ativas = ativasL.length;
+    const unidades = ativasL.reduce((s, p) => s + Math.max(0, qtdDe(p.id) || 0), 0);
+    const valorEst = ativasL.reduce((s, p) => s + Math.max(0, qtdDe(p.id) || 0) * (custoDe(p.id) || 0), 0);
+    const nEsg = ativasL.filter(p => situacao(qtdDe(p.id)) === "esgotada").length, nAcab = ativasL.filter(p => situacao(qtdDe(p.id)) === "acabando").length;
     const periodo = (f.mes ? MESES_L[f.mes - 1] + " " : "") + (f.ano || (f.mes ? "(todos os anos)" : "todo o período"));
     const kpisV = `<div class="kpis k4">
       ${kpi("Receita total", din(receita))}
@@ -369,8 +387,8 @@
       ${kpi("Peças vendidas", milhar(pecasV))}
       ${kpi("Nº de vendas", milhar(vs.length))}
       ${kpi("Taxas de maquininha", din(taxas))}
-      ${kpi("Peças ativas no catálogo", milhar(ativas), "posição atual")}
-    </div>${semCusto ? `<p class="aviso-s">${semCusto} ${semCusto === 1 ? "venda está" : "vendas estão"} sem custo da peça, então o lucro dela${semCusto === 1 ? "" : "s"} não entra na conta. Informe o custo em Estoque.</p>` : ""}`;
+      ${kpi("Unidades em estoque", milhar(unidades), `${dinCurto(valorEst)} a preço de custo · agora`)}
+    </div>${nEsg || nAcab ? `<p class="aviso-est"><span>${[nEsg ? `${nEsg} ${nEsg === 1 ? "peça esgotada" : "peças esgotadas"}` : "", nAcab ? `${nAcab} acabando` : ""].filter(Boolean).join(" · ")}</span><button class="linkbtn" type="button" data-ir="estoque">Ver no estoque</button></p>` : ""}${semCusto ? `<p class="aviso-s">${semCusto} ${semCusto === 1 ? "venda está" : "vendas estão"} sem custo da peça, então o lucro dela${semCusto === 1 ? "" : "s"} não entra na conta. Informe o custo em Estoque.</p>` : ""}`;
     const kpisO = `<div class="kpis k3">
       ${kpi("Prejuízo com perdas", din(prej))}
       ${kpi("Resultado após perdas", din(lucro - prej), "", lucro - prej < 0 ? "neg" : "")}
@@ -401,50 +419,58 @@
 
   /* ---------- ESTOQUE ---------- */
   function abaEstoque() {
-    const q = norm(G.busca.estoque);
-    const lista = G.pecas.filter(p => !q || norm(p.nome).includes(q) || norm(p.codigo).includes(q))
+    const q = norm(G.busca.estoque), fe = G.fEst || "";
+    const passa = p => !fe || (fe === "sem" ? qtdDe(p.id) == null : situacao(qtdDe(p.id)) === fe || (fe === "baixo" && situacao(qtdDe(p.id)) !== "ok" && qtdDe(p.id) != null));
+    const lista = G.pecas.filter(p => (!q || norm(p.nome).includes(q) || norm(p.codigo).includes(q)) && passa(p) && (!fe || !p.arquivada))
       .sort((a, b) => (a.arquivada - b.arquivada) || a.nome.localeCompare(b.nome, "pt-BR"));
     const ativas = G.pecas.filter(p => !p.arquivada), comCusto = ativas.filter(p => custoDe(p.id) != null);
-    const custoMedio = comCusto.length ? Math.round(comCusto.reduce((s, p) => s + custoDe(p.id), 0) / comCusto.length) : null;
+    const unidades = ativas.reduce((s, p) => s + Math.max(0, qtdDe(p.id) || 0), 0);
+    const valorCusto = ativas.reduce((s, p) => s + Math.max(0, qtdDe(p.id) || 0) * (custoDe(p.id) || 0), 0);
+    const valorVitrine = ativas.reduce((s, p) => s + Math.max(0, qtdDe(p.id) || 0) * (p.valor || 0), 0);
+    const nEsg = ativas.filter(p => situacao(qtdDe(p.id)) === "esgotada").length, nAcab = ativas.filter(p => situacao(qtdDe(p.id)) === "acabando").length;
+    const semQtd = ativas.filter(p => qtdDe(p.id) == null).length;
     const porCat = new Map(); ativas.forEach(p => { const c = catOf(p) || "Sem categoria"; porCat.set(c, (porCat.get(c) || 0) + 1); });
     const itens = lista.map(p => {
       const c = custoDe(p.id), sug = precoSugerido(c), fo = fornDe((G.custos.get(p.id) || {}).fornecedor_id);
-      const mult = c && p.valor ? p.valor / c : null;
-      return `<li class="reg${p.arquivada ? " fora" : ""}" data-peca="${esc(p.id)}" tabindex="0" role="button">
+      const mult = c && p.valor ? p.valor / c : null, qt = qtdDe(p.id), st = situacao(qt);
+      return `<li class="reg com-qtd${p.arquivada ? " fora" : ""}" data-peca="${esc(p.id)}" tabindex="0" role="button">
         ${fotoDe(p) ? `<img src="${esc(fotoDe(p))}" alt="" loading="lazy">` : '<span class="semfoto"></span>'}
         <div class="meio"><b>${esc(p.nome)}</b><span>${esc([p.codigo, LH.nomeLinha(p.linha), catOf(p), p.arquivada ? "arquivada" : ""].filter(Boolean).join(" · "))}</span>
-          <span>${fo ? esc(fo.nome) : '<em class="falta">sem fornecedor</em>'}</span></div>
-        <div class="dir">${c == null ? '<em class="falta">sem custo</em>' : `<b>${esc(din(c))}</b><small>custo</small>`}
-          ${sug != null ? `<small>sugerido ${esc(din(sug))}</small>` : ""}
-          ${p.valor != null ? `<small>vitrine ${esc(din(p.valor))}${mult ? ` · ${mult.toFixed(1).replace(".", ",")}×` : ""}</small>` : ""}</div></li>`;
+          <span>${fo ? esc(fo.nome) : '<em class="falta">sem fornecedor</em>'}</span>
+          <span class="precos">${c == null ? '<em class="falta">sem custo</em>' : `custo <b>${esc(din(c))}</b>`}${sug != null ? ` · sugerido ${esc(din(sug))}` : ""}${p.valor != null ? ` · vitrine ${esc(din(p.valor))}${mult ? ` (${mult.toFixed(1).replace(".", ",")}×)` : ""}` : ""}</span></div>
+        <div class="qtd ${st || "nc"}" title="${esc(qt == null ? "Quantidade não informada" : un(qt))}"><b>${qt == null ? "—" : esc(String(qt))}</b><small>${st === "esgotada" ? "esgotada" : st === "acabando" ? "acabando" : qt == null ? "sem qtd." : "em estoque"}</small></div></li>`;
     }).join("");
-    return `<div class="kpis k4">${kpi("Peças cadastradas", milhar(G.pecas.length))}${kpi("Peças ativas", milhar(ativas.length))}${kpi("Sem custo informado", milhar(ativas.length - comCusto.length), "peças ativas", ativas.length - comCusto.length ? "alerta" : "")}${kpi("Custo médio", din(custoMedio), "das peças ativas")}</div>
-      <p class="nota">As peças são as mesmas da vitrine. Para cadastrar uma peça nova, use o painel. Aqui você informa o custo e o fornecedor; o preço sugerido é calculado com os parâmetros da aba Preços.</p>
+    const chip = (v, t, n) => `<button type="button" data-fest="${v}" aria-pressed="${fe === v}">${esc(t)}${n != null ? ` <b>${n}</b>` : ""}</button>`;
+    return `<div class="kpis k3">${kpi("Unidades em estoque", milhar(unidades), "peças ativas")}${kpi("Valor em estoque", din(valorCusto), "a preço de custo")}${kpi("Valor de venda do estoque", din(valorVitrine), "a preço da vitrine")}${kpi("Esgotadas", milhar(nEsg), "peças ativas", nEsg ? "neg" : "")}${kpi("Acabando", G.cfg.minimo ? milhar(nAcab) : "—", G.cfg.minimo ? `${G.cfg.minimo} ${G.cfg.minimo === 1 ? "unidade" : "unidades"} ou menos` : "ligue o aviso na engrenagem", nAcab ? "alerta" : "")}${kpi("Sem custo informado", milhar(ativas.length - comCusto.length), "peças ativas", ativas.length - comCusto.length ? "alerta" : "")}</div>
+      <p class="nota">As peças são as mesmas da vitrine; para cadastrar uma nova, use o painel. Aqui você informa custo, fornecedor e quantidade. <b>A quantidade só aparece aqui na gestão — a vitrine das clientes não mostra.</b> Ela baixa sozinha quando você lança uma venda ou uma perda.</p>
       ${cartao("Peças por categoria", barras([...porCat].map(([r, v]) => ({ rotulo: r, valor: v })), { fmt: n => milhar(n) + (n === 1 ? " peça" : " peças") }))}
+      <div class="chips" role="group" aria-label="Filtrar estoque">${chip("", "Todas")}${chip("baixo", "Repor", nEsg + nAcab)}${chip("esgotada", "Esgotadas", nEsg)}${chip("acabando", "Acabando", nAcab)}${chip("sem", "Sem quantidade", semQtd)}</div>
       <div class="busca"><input type="search" data-busca="estoque" placeholder="Buscar por nome ou código" value="${esc(G.busca.estoque)}" aria-label="Buscar peça"></div>
       <ul class="regs">${itens || '<li class="vazio-g">Nenhuma peça encontrada.</li>'}</ul>`;
   }
   function formCusto(id) {
     const p = pecaDe(id), atual = G.custos.get(id) || {};
     abrirForm({
-      titulo: "Custo da peça",
+      titulo: "Estoque da peça",
       extra: `<div class="peca-topo">${fotoDe(p) ? `<img src="${esc(fotoDe(p))}" alt="">` : ""}<div><b>${esc(p.nome)}</b><span>${esc([p.codigo, LH.nomeLinha(p.linha), catOf(p)].filter(Boolean).join(" · "))}</span></div></div>`,
       campos: [
+        { k: "quantidade", rotulo: "Quantidade", tipo: "numero", meia: true, dica: "Unidades em estoque. Só a gestão vê. Deixe vazio para não controlar." },
         { k: "custo", rotulo: "Custo unitário", tipo: "dinheiro", meia: true },
-        { k: "fornecedor_id", rotulo: "Fornecedor", tipo: "lista", meia: true, opcoes: () => G.forn.map(f => ({ v: f.id, t: f.nome })), vazio: "Sem fornecedor" }
+        { k: "fornecedor_id", rotulo: "Fornecedor", tipo: "lista", opcoes: () => G.forn.map(f => ({ v: f.id, t: f.nome })), vazio: "Sem fornecedor" }
       ],
-      vals: { custo: atual.custo ?? null, fornecedor_id: atual.fornecedor_id || "" },
+      vals: { custo: atual.custo ?? null, fornecedor_id: atual.fornecedor_id || "", quantidade: atual.quantidade ?? null },
       calcular: v => {
         const sug = precoSugerido(v.custo);
         return v.custo == null ? [] : [
           { r: "Preço sugerido", v: din(sug), destaque: true },
+          ...(v.quantidade != null ? [{ r: `Estoque a preço de custo (${un(v.quantidade)})`, v: din(Math.max(0, v.quantidade) * v.custo) }] : []),
           { r: `Conta: custo × ${String(G.cfg.mult).replace(".", ",")} + taxas + embalagem`, v: "" },
           { r: "Preço na vitrine hoje", v: din(p.valor) },
           { r: "Vitrine ÷ custo", v: p.valor ? (p.valor / v.custo).toFixed(2).replace(".", ",") + "×" : "—" }
         ];
       },
-      salvar: v => salvarCusto(id, v.custo, v.fornecedor_id),
-      textoOk: "Custo salvo",
+      salvar: v => salvarCusto(id, v.custo, v.fornecedor_id, v.quantidade),
+      textoOk: "Peça salva",
       aoAbrir: () => {
         const box = document.createElement("div"); box.className = "acao-extra";
         box.innerHTML = `<button class="btn sm" type="button" id="usarSug">Usar o preço sugerido na vitrine</button><p class="hint">Troca o valor da peça na vitrine pelo preço sugerido. As clientes veem na hora.</p>`;
@@ -455,12 +481,23 @@
           try {
             const { error } = await sb.from("pecas").update({ valor: sug, atualizado_em: new Date().toISOString() }).eq("id", id);
             if (error) throw error;
-            await salvarCusto(id, v.custo, v.fornecedor_id);
+            await salvarCusto(id, v.custo, v.fornecedor_id, v.quantidade);
             fecharForm(); await recarregar(); toast(`Preço na vitrine: ${din(sug)}`);
           } catch (e) { falhou(e); }
         };
       }
     });
+  }
+
+  // linha do cálculo que mostra como o estoque da peça fica depois de salvar
+  function estoqueDepois(pecaId, delta, desfazer) {
+    if (!pecaId) return null;
+    let q = qtdDe(pecaId);
+    if (q == null) return { r: "Estoque", v: "quantidade não informada" };
+    desfazer.forEach(([pid, d]) => { if (pid === pecaId) q += d; });
+    const fica = q + delta;
+    if (!delta) return { r: "Estoque", v: `${un(q)} (não muda)` };
+    return { r: fica < 0 ? "Estoque — não há unidades suficientes" : "Estoque", v: `${q} → ${fica}`, alerta: fica < 0 || situacao(fica) !== "ok" };
   }
 
   /* ---------- VENDAS ---------- */
@@ -494,7 +531,7 @@
         { k: "regiao", rotulo: "Região", tipo: "lista", meia: true, opcoes: () => ops(G.cfg.listas.regioes), vazio: "Não informada" },
         { k: "obs", rotulo: "Observações", tipo: "area" }
       ],
-      vals: v0 ? Object.assign({}, v0) : { data: hoje(), quantidade: 1, canal: ultimo.canal || "", pagamento: ultimo.pagamento || "", regiao: ultimo.regiao || "" },
+      vals: v0 ? Object.assign({}, v0) : { data: hoje(), quantidade: 1, canal: ultimo.canal || "", pagamento: ultimo.pagamento || "Pix", regiao: ultimo.regiao || "" },
       aoMudar: (k, v) => { if (k === "peca_id") { const p = pecaDe(v.peca_id); if (p && p.valor != null) return { preco_unit: p.valor }; } },
       calcular: v => {
         const mesmaPeca = v0 && v0.peca_id === v.peca_id, mesmaForma = v0 && v0.pagamento === v.pagamento;
@@ -510,20 +547,23 @@
           { r: `Taxa da maquininha (${pct(taxa, 2)})`, v: din(c.taxa) },
           { r: "Lucro líquido", v: din(c.lucro), destaque: true },
           { r: "Margem", v: pct(c.margem) },
-          { r: "Linha · categoria", v: p ? `${LH.nomeLinha(p.linha)} · ${catOf(p) || "—"}` : "—" }
+          { r: "Linha · categoria", v: p ? `${LH.nomeLinha(p.linha)} · ${catOf(p) || "—"}` : "—" },
+          estoqueDepois(v.peca_id, -(v.quantidade || 0), v0 ? [[v0.peca_id, v0.quantidade]] : [])
         ];
       },
-      salvar: v => {
+      salvar: async v => {
         const p = pecaDe(v.peca_id), mesmaPeca = v0 && v0.peca_id === v.peca_id, mesmaForma = v0 && v0.pagamento === v.pagamento;
-        return gravar("vendas", id, {
+        await gravar("vendas", id, {
           data: v.data, canal: v.canal, peca_id: v.peca_id || null, peca_nome: p ? p.nome : (v0 && v0.peca_nome) || "",
           linha: p ? p.linha : "semijoias", categoria: p ? catOf(p) : "", quantidade: v.quantidade, preco_unit: v.preco_unit || 0,
           custo_unit: mesmaPeca && v0.custo_unit != null ? v0.custo_unit : custoDe(v.peca_id),
           pagamento: v.pagamento, taxa_pct: mesmaForma ? Number(v0.taxa_pct) : taxaDe(v.pagamento), regiao: v.regiao || "", obs: v.obs || ""
         });
+        if (v0) await mover(v0.peca_id, v0.quantidade || 0);   // desfaz a baixa antiga
+        await mover(v.peca_id, -(v.quantidade || 0));
       },
       textoOk: v0 ? "Venda atualizada" : "Venda registrada",
-      excluir: v0 ? () => apagar("vendas", id) : null, textoExcluir: "Excluir esta venda?"
+      excluir: v0 ? async () => { await apagar("vendas", id); await mover(v0.peca_id, v0.quantidade || 0); } : null, textoExcluir: "Excluir esta venda? A peça volta para o estoque."
     });
   }
 
@@ -534,7 +574,7 @@
     const porTipo = new Map(); lista.forEach((p, i) => porTipo.set(p.tipo || "Outro", (porTipo.get(p.tipo || "Outro") || 0) + cs[i].prejuizo));
     const itens = lista.map((p, i) => `<li class="reg" data-perda="${esc(p.id)}" tabindex="0" role="button">
       ${fotoDe(pecaDe(p.peca_id)) ? `<img src="${esc(fotoDe(pecaDe(p.peca_id)))}" alt="" loading="lazy">` : '<span class="semfoto"></span>'}
-      <div class="meio"><b>${esc(p.quantidade > 1 ? p.quantidade + "× " : "")}${esc(p.peca_nome || "Peça")}</b><span>${esc([dataBR(p.data), p.tipo, p.retorna ? "voltou ao estoque" : ""].filter(Boolean).join(" · "))}</span></div>
+      <div class="meio"><b>${esc(p.quantidade > 1 ? p.quantidade + "× " : "")}${esc(p.peca_nome || "Peça")}</b><span>${esc([dataBR(p.data), p.tipo, p.estoque_mov > 0 ? "voltou ao estoque" : p.estoque_mov < 0 ? "baixou do estoque" : ""].filter(Boolean).join(" · "))}</span></div>
       <div class="dir"><b class="neg">${esc(din(cs[i].prejuizo))}</b><small>prejuízo</small></div></li>`).join("");
     return `<div class="kpis k3">${kpi("Ocorrências", milhar(lista.length))}${kpi("Prejuízo total", din(prej))}${kpi("Reembolsado a clientes", din(reemb))}</div>
       ${cartao("Prejuízo por tipo", barras([...porTipo].map(([r, v]) => ({ rotulo: r, valor: v }))))}
@@ -554,9 +594,12 @@
         { k: "reembolso", rotulo: "Valor reembolsado à cliente", tipo: "dinheiro", meia: true, dica: "Deixe vazio se não houve reembolso." },
         { k: "pagamento", rotulo: "Forma de pagamento da venda", tipo: "lista", meia: true, opcoes: () => formas().map(fm => ({ v: fm, t: fm })), vazio: "Não se aplica" },
         { k: "pedido", rotulo: "Pedido relacionado", tipo: "texto", meia: true },
+        { k: "estoque_mov", rotulo: "Efeito no estoque", tipo: "seg", opcoes: [{ v: "-1", t: "Baixa" }, { v: "0", t: "Não mexe" }, { v: "1", t: "Devolve" }],
+          dica: "Baixa: a peça saiu do estoque (defeito, extravio, furto, uso próprio). Devolve: voltou de uma cliente. Não mexe: já tinha saído na venda." },
         { k: "obs", rotulo: "Observações", tipo: "area" }
       ],
-      vals: p0 ? Object.assign({}, p0, { retorna: p0.retorna ? "sim" : "nao" }) : { data: hoje(), quantidade: 1, retorna: "nao" },
+      vals: p0 ? Object.assign({}, p0, { retorna: p0.retorna ? "sim" : "nao", estoque_mov: String(p0.estoque_mov || 0) }) : { data: hoje(), quantidade: 1, retorna: "nao", estoque_mov: "-1" },
+      aoMudar: (k, v) => { if (k === "tipo" || k === "retorna") return { estoque_mov: String(movPadrao(v.tipo, v.retorna === "sim")) }; },
       calcular: v => {
         if (!v.peca_id || !v.quantidade) return [];
         const custo = p0 && p0.peca_id === v.peca_id && p0.custo_unit != null ? p0.custo_unit : custoDe(v.peca_id);
@@ -566,19 +609,30 @@
           { r: "Custo da perda", v: din(c.custoPerda) },
           { r: "Reembolso", v: din(c.reemb) },
           { r: "Taxa retida pela operadora", v: din(c.taxa) },
-          { r: "Prejuízo total", v: din(c.prejuizo), destaque: true }
+          { r: "Prejuízo total", v: din(c.prejuizo), destaque: true },
+          estoqueDepois(v.peca_id, Number(v.estoque_mov || 0) * (v.quantidade || 0), p0 ? [[p0.peca_id, -(p0.estoque_mov || 0) * (p0.quantidade || 0)]] : [])
         ];
       },
-      salvar: v => {
-        const p = pecaDe(v.peca_id);
-        return gravar("perdas", id, {
+      salvar: async v => {
+        const p = pecaDe(v.peca_id), mov = Number(v.estoque_mov || 0);
+        await gravar("perdas", id, {
           data: v.data, tipo: v.tipo, peca_id: v.peca_id || null, peca_nome: p ? p.nome : (p0 && p0.peca_nome) || "", quantidade: v.quantidade,
           retorna: v.retorna === "sim", custo_unit: p0 && p0.peca_id === v.peca_id && p0.custo_unit != null ? p0.custo_unit : custoDe(v.peca_id),
-          reembolso: v.reembolso, pagamento: v.pagamento || "", taxa_pct: v.pagamento ? taxaDe(v.pagamento) : 0, pedido: v.pedido || "", obs: v.obs || ""
+          reembolso: v.reembolso, pagamento: v.pagamento || "", taxa_pct: v.pagamento ? taxaDe(v.pagamento) : 0, pedido: v.pedido || "", obs: v.obs || "", estoque_mov: mov
         });
+        if (p0) await mover(p0.peca_id, -(p0.estoque_mov || 0) * (p0.quantidade || 0));
+        await mover(v.peca_id, mov * (v.quantidade || 0));
       },
-      textoOk: "Perda salva", excluir: p0 ? () => apagar("perdas", id) : null, textoExcluir: "Excluir este registro de perda?"
+      textoOk: "Perda salva",
+      excluir: p0 ? async () => { await apagar("perdas", id); await mover(p0.peca_id, -(p0.estoque_mov || 0) * (p0.quantidade || 0)); } : null, textoExcluir: "Excluir este registro de perda? O estoque volta como estava."
     });
+  }
+
+  // sugestão de efeito no estoque conforme o tipo de perda
+  function movPadrao(tipo, retorna) {
+    if (retorna) return 1;
+    if (/devolu/i.test(tipo || "")) return 0;
+    return -1;
   }
 
   /* ---------- FINANCEIRO ---------- */
@@ -619,7 +673,7 @@
   let calcCusto = 3000;
   function abaPrecos() {
     const c = G.cfg;
-    const taxas = Object.entries(c.taxas).map(([k, v]) => `<div class="tx"><span>${esc(k)}</span><div class="money sufixo"><input data-taxa="${esc(k)}" inputmode="decimal" value="${esc(pctIn(v))}" aria-label="Taxa ${esc(k)}"><span>%</span></div><button type="button" class="x" data-rmtaxa="${esc(k)}" aria-label="Remover ${esc(k)}">×</button></div>`).join("");
+    const taxas = Object.entries(c.taxas).map(([k, v]) => `<div class="tx"><span>${esc(k)}</span><div class="money sufixo"><input data-taxa="${esc(k)}" inputmode="decimal" value="${esc(pctIn(v))}" aria-label="Taxa ${esc(k)}"><span>%</span></div>${k === "Pix" ? '<span class="x fixa" title="O Pix fica sempre na lista"></span>' : `<button type="button" class="x" data-rmtaxa="${esc(k)}" aria-label="Remover ${esc(k)}">×</button>`}</div>`).join("");
     const ref = [["Bijuteria", 1500], ["Semijoia entrada", 3000], ["Semijoia média", 6000]];
     return `${cartao("Calculadora rápida", `
         <div class="field"><label for="calcCusto">Custo da peça</label><div class="money"><span>R$</span><input id="calcCusto" inputmode="decimal" value="${esc(dinIn(calcCusto))}"></div></div>
@@ -732,19 +786,21 @@
     abrirForm({
       titulo: "Ajustes da gestão",
       campos: [
+        { k: "minimo", rotulo: "Avisar “acabando” quando o estoque chegar a", tipo: "numero", dica: "Em unidades. 0 = só avisa quando esgotar; 1 = avisa também quando sobrar a última peça." },
         { k: "canais", rotulo: "Canais de venda", tipo: "area", dica: "Um por linha." },
         { k: "regioes", rotulo: "Regiões", tipo: "area" },
         { k: "tiposPerda", rotulo: "Tipos de perda", tipo: "area" },
         { k: "categoriasFin", rotulo: "Categorias do financeiro", tipo: "area" }
       ],
-      vals: { canais: L.canais.join("\n"), regioes: L.regioes.join("\n"), tiposPerda: L.tiposPerda.join("\n"), categoriasFin: L.categoriasFin.join("\n") },
+      vals: { minimo: G.cfg.minimo, canais: L.canais.join("\n"), regioes: L.regioes.join("\n"), tiposPerda: L.tiposPerda.join("\n"), categoriasFin: L.categoriasFin.join("\n") },
       extra: `<div class="imp"><span class="lbl">Dados da planilha</span><p class="hint">Traz da planilha antiga: custo e fornecedor de cada peça, fornecedores, perdas, parâmetros de preço, taxas e plano de tráfego. Pode rodar de novo: o que já existe não é duplicado.</p><button class="btn sm" type="button" id="btnImpPlan">Importar arquivo da planilha (.json)</button><input type="file" id="arqPlan" accept=".json,application/json" hidden></div>`,
       salvar: async v => {
         const lin = s => String(s || "").split(/\n/).map(x => x.trim()).filter((x, i, a) => x && a.indexOf(x) === i);
         G.cfg.listas = { canais: lin(v.canais), regioes: lin(v.regioes), tiposPerda: lin(v.tiposPerda), categoriasFin: lin(v.categoriasFin) };
+        if (v.minimo != null && v.minimo >= 0) G.cfg.minimo = v.minimo;
         await salvarCfg();
       },
-      textoSalvar: "Salvar listas", textoOk: "Listas salvas",
+      textoSalvar: "Salvar ajustes", textoOk: "Ajustes salvos",
       aoAbrir: () => {
         $("#btnImpPlan").onclick = () => $("#arqPlan").click();
         $("#arqPlan").onchange = async e => { const f = e.target.files[0]; e.target.value = ""; if (!f) return; fecharForm(); await importarPlanilha(f); };
@@ -767,7 +823,7 @@
     const res = { forn: 0, custos: 0, semPeca: [], perdas: 0 };
     try {
       if (d.parametros) { G.cfg.mult = Number(d.parametros.multiplicador) || G.cfg.mult; G.cfg.mkt = Number(d.parametros.taxaMarketplace) || 0; G.cfg.emb = d.parametros.embalagem ?? G.cfg.emb; if (d.parametros.formaTaxaPreco) G.cfg.formaPreco = d.parametros.formaTaxaPreco; }
-      if (d.taxas && Object.keys(d.taxas).length) G.cfg.taxas = d.taxas;
+      if (d.taxas && Object.keys(d.taxas).length) G.cfg.taxas = comPix(d.taxas);
       if (d.listas) { const L = d.listas; G.cfg.listas = { canais: L.canais || G.cfg.listas.canais, regioes: L.regioes || G.cfg.listas.regioes, tiposPerda: L.tiposPerda || G.cfg.listas.tiposPerda, categoriasFin: L.categoriasFinanceiro || G.cfg.listas.categoriasFin }; }
       if (Array.isArray(d.planoTrafego) && d.planoTrafego.length) G.cfg.plano = d.planoTrafego;
       await salvarCfg();
@@ -780,17 +836,19 @@
         const p = acharPeca(e.codigo, e.nome);
         if (!p) { res.semPeca.push(e.codigo || e.nome); continue; }
         const fo = G.forn.find(x => norm(x.nome) === norm(e.fornecedor));
-        await salvarCusto(p.id, e.custo, fo ? fo.id : null);
-        G.custos.set(p.id, { peca_id: p.id, custo: e.custo, fornecedor_id: fo ? fo.id : null }); res.custos++;
+        const qt = qtdDe(p.id) ?? (e.quantidade ?? null);   // não troca uma contagem que já existe
+        await salvarCusto(p.id, e.custo, fo ? fo.id : null, qt);
+        G.custos.set(p.id, { peca_id: p.id, custo: e.custo, fornecedor_id: fo ? fo.id : null, quantidade: qt }); res.custos++;
       }
       for (const pe of d.perdas || []) {
         const p = acharPeca("", pe.peca);
         if (G.perdas.some(x => x.data === pe.data && x.tipo === pe.tipo && norm(x.peca_nome) === norm(p ? p.nome : pe.peca))) continue;
-        await gravar("perdas", null, { data: pe.data, tipo: pe.tipo || "", peca_id: p ? p.id : null, peca_nome: p ? p.nome : pe.peca, quantidade: pe.quantidade || 1, retorna: !!pe.retorna, custo_unit: p ? custoDe(p.id) : null, reembolso: pe.reembolso ?? null, pagamento: pe.pagamento || "", taxa_pct: pe.pagamento ? taxaDe(pe.pagamento) : 0, pedido: pe.pedido || "", obs: pe.obs || "" });
+        await gravar("perdas", null, { data: pe.data, tipo: pe.tipo || "", peca_id: p ? p.id : null, peca_nome: p ? p.nome : pe.peca, quantidade: pe.quantidade || 1, retorna: !!pe.retorna, custo_unit: p ? custoDe(p.id) : null, reembolso: pe.reembolso ?? null, pagamento: pe.pagamento || "", taxa_pct: pe.pagamento ? taxaDe(pe.pagamento) : 0, pedido: pe.pedido || "", obs: pe.obs || "", estoque_mov: movPadrao(pe.tipo, !!pe.retorna) });
+        // a quantidade da planilha já considera essa perda, então aqui o estoque não é mexido
         res.perdas++;
       }
       await recarregar();
-      toast(`Importado: ${res.custos} custos, ${res.forn} fornecedores, ${res.perdas} perdas${res.semPeca.length ? ` · ${res.semPeca.length} sem peça na vitrine` : ""}`);
+      toast(`Importado: ${res.custos} peças com custo e quantidade, ${res.forn} fornecedores, ${res.perdas} perdas${res.semPeca.length ? ` · ${res.semPeca.length} sem peça na vitrine` : ""}`);
     } catch (e) { falhou(e); }
   }
 
@@ -806,7 +864,7 @@
     $("#dockG").hidden = !ac; if (ac) $("#acaoG").textContent = ac[0];
     document.body.classList.toggle("com-dock", !!ac);
   }
-  $("#abasG").addEventListener("click", e => { const b = e.target.closest("[data-aba]"); if (!b) return; G.aba = b.dataset.aba; try { localStorage.setItem("lehele-gestao-aba", G.aba); } catch (x) { } desenhar(); window.scrollTo(0, 0); b.scrollIntoView({ inline: "center", block: "nearest" }); });
+  $("#abasG").addEventListener("click", e => { const b = e.target.closest("[data-aba]"); if (!b) return; G.aba = b.dataset.aba; G.fEst = ""; try { localStorage.setItem("lehele-gestao-aba", G.aba); } catch (x) { } desenhar(); window.scrollTo(0, 0); b.scrollIntoView({ inline: "center", block: "nearest" }); });
   $("#acaoG").onclick = () => ACOES[G.aba] && ACOES[G.aba][1]();
   $("#btnAjG").onclick = abrirAjustesG;
   const abrirPor = (sel, fn) => $("#conteudo").addEventListener("click", e => { const el = e.target.closest(sel); if (el) fn(el); });
@@ -817,7 +875,9 @@
   abrirPor("[data-forn]", el => formForn(el.dataset.forn));
   abrirPor("[data-traf]", el => formTraf(el.dataset.traf));
   abrirPor("[data-fase]", el => formFase(+el.dataset.fase));
-  abrirPor("[data-rmtaxa]", el => { const k = el.dataset.rmtaxa; if (Object.keys(G.cfg.taxas).length < 2) return; const t = lerPrecos(); delete t.taxas[k]; if (t.formaPreco === k) t.formaPreco = Object.keys(t.taxas)[0]; Object.assign(G.cfg, t); desenhar(); toast("Removida. Toque em Salvar parâmetros para confirmar."); });
+  abrirPor("[data-fest]", el => { G.fEst = el.dataset.fest; desenhar(); });
+  abrirPor("[data-ir]", el => { G.aba = el.dataset.ir; G.fEst = "baixo"; desenhar(); window.scrollTo(0, 0); });
+  abrirPor("[data-rmtaxa]", el => { const k = el.dataset.rmtaxa; if (k === "Pix" || Object.keys(G.cfg.taxas).length < 2) return; const t = lerPrecos(); delete t.taxas[k]; if (t.formaPreco === k) t.formaPreco = Object.keys(t.taxas)[0]; Object.assign(G.cfg, t); desenhar(); toast("Removida. Toque em Salvar parâmetros para confirmar."); });
   $("#conteudo").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.matches("[role=button]")) e.target.click(); });
   $("#conteudo").addEventListener("change", e => {
     const f = e.target.dataset.f; if (f !== undefined) { G.f[f] = e.target.value; desenhar(); return; }

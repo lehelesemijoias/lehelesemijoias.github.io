@@ -240,6 +240,11 @@ img{max-width:100%}
 body{padding-bottom:24px}
 body.com-dock{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
 .dock-in.um{grid-template-columns:1fr;max-width:480px}
+.abas .aba-link{flex:1;min-height:42px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft);text-decoration:none}
+.abas .aba-link.atual{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(58,46,31,.14)}
+.abas.sub{background:transparent;border-color:transparent;padding:0;gap:6px;margin-top:-6px}
+.abas.sub button{border:1px solid var(--line);min-height:38px;font-size:11px}
+.abas.sub button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink);box-shadow:none}
 .abas.rolar{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;border-radius:999px}
 .abas.rolar::-webkit-scrollbar{display:none}
 .abas.rolar button{flex:none;padding:0 16px;letter-spacing:.14em;white-space:nowrap}
@@ -363,6 +368,23 @@ select:focus{border-color:var(--gold)}
 .tabela tr[data-fase]:hover td{background:color-mix(in srgb,var(--gold) 10%,transparent)}
 .tabela tr.tot td{font-weight:500;border-bottom:none}
 .conta{text-align:center;margin:8px 0 0}
+.reg.com-qtd{grid-template-columns:52px minmax(0,1fr) 68px;align-items:start}
+.reg.com-qtd .meio span.precos{white-space:normal;line-height:1.4;margin-top:2px}
+.reg.com-qtd .meio span.precos b{font-weight:500;color:var(--ink)}
+.qtd{display:grid;justify-items:center;border-left:1px solid var(--line);padding-left:8px;min-height:52px;align-content:center;align-self:stretch}
+.qtd b{font-family:var(--display);font-weight:400;font-size:26px;line-height:1;font-variant-numeric:tabular-nums}
+.qtd small{font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);white-space:nowrap;margin-top:3px}
+.qtd.esgotada b,.qtd.esgotada small{color:var(--danger)}
+.qtd.acabando b,.qtd.acabando small{color:var(--gold-deep)}
+.qtd.nc b{color:var(--ink-soft)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 0}
+.chips button{border:1px solid var(--line);background:transparent;border-radius:999px;min-height:38px;padding:0 14px;font-size:12px;letter-spacing:.08em;color:var(--ink-soft)}
+.chips button b{font-weight:500;color:var(--ink);margin-left:2px}
+.chips button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.chips button[aria-pressed="true"] b{color:var(--bg)}
+.aviso-est{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px;margin:12px 0 0;padding:10px 14px;border:1px solid color-mix(in srgb,var(--danger) 40%,var(--line));border-radius:12px;font-size:13px;color:var(--danger);background:color-mix(in srgb,var(--danger) 6%,transparent)}
+.calc .alerta span,.calc .alerta b{color:var(--danger)}
+.tx .x.fixa{border:none}
 .previa{background:var(--ink);color:var(--bg);text-align:center;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:6px 12px}
 </style>
 </head>
@@ -371,7 +393,7 @@ select:focus{border-color:var(--gold)}
 <header class="top">
   <div class="top-in">
     <img class="seal" alt="" src="assets/emblema.jpg">
-    <div class="brand"><h1>Le Helê</h1><p>Gestão</p></div>
+    <div class="brand"><h1>Le Helê</h1><p>Vitrine virtual</p></div>
     <button class="icon-btn" id="btnAjG" aria-label="Ajustes da gestão">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
     </button>
@@ -382,7 +404,12 @@ select:focus{border-color:var(--gold)}
 </header>
 
 <main>
-  <nav class="abas rolar" id="abasG" role="tablist" aria-label="Seções da gestão"></nav>
+  <nav class="abas" aria-label="Seções do painel">
+    <a class="aba-link" href="painel.html">Peças</a>
+    <a class="aba-link" href="painel.html#acessos">Acessos</a>
+    <span class="aba-link atual" aria-current="page">Gestão</span>
+  </nav>
+  <nav class="abas rolar sub" id="abasG" role="tablist" aria-label="Seções da gestão"></nav>
   <div id="conteudo"></div>
   <p class="hint conta" id="contaG"></p>
   <p class="assinatura">Desenvolvido por Marcelino</p>
