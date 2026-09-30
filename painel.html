@@ -210,6 +210,12 @@ img{max-width:100%}
 .ranking .num small{display:block;font-family:var(--body);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin-top:4px}
 .ranking .num em{display:block;font-style:normal;font-family:var(--body);font-size:11px;color:var(--gold-deep);margin-top:4px;white-space:nowrap}
 .ranking li.fora{opacity:.6}
+.dest{display:grid;gap:10px}
+.dest-item{display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px}
+.dest-item img,.dest-item .vazio{width:72px;height:72px;border-radius:8px;object-fit:cover;background:var(--surface-2);display:block}
+.dest-item b{display:block;font-family:var(--display);font-weight:400;font-size:19px;margin-bottom:6px}
+.dest-item select{width:100%;min-height:42px;border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:0 10px;font-size:15px}
+.dest-item select:disabled{opacity:.5}
 .seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:4px}
 .seg label{position:relative;cursor:pointer}
 .seg input{position:absolute;opacity:0;pointer-events:none}
@@ -351,6 +357,11 @@ img{max-width:100%}
       <button class="icon-btn" id="ajFechar" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
     <form class="panel-b" id="ajForm" novalidate>
+      <div class="field" id="destBox">
+        <span class="lbl">Foto de destaque das linhas</span>
+        <div class="dest" id="destLista"></div>
+        <p class="hint" id="destHint">É a foto grande que a cliente vê em Semijoias e em Ouro depois de tocar em “Entrar na vitrine”. Em “Automático” aparece a peça cadastrada mais recente.</p>
+      </div>
       <div class="field" id="ordemBox">
         <span class="lbl">Ordem das categorias</span>
         <ol class="ordem" id="ordemLista"></ol>
@@ -889,10 +900,32 @@ function renderOrdem() {
 const mover = (de, para) => { if (para < 0 || para >= ORDEM.length || de === para) return; const [c] = ORDEM.splice(de, 1); ORDEM.splice(para, 0, c); renderOrdem(); };
 $("#ordemLista").addEventListener("click", e => { const b = e.target.closest("[data-mv]"); if (b) mover(+b.dataset.mv, +b.dataset.mv + +b.dataset.d); });
 $("#ordemLista").addEventListener("change", e => { const sl = e.target.closest("select[data-pos]"); if (sl) mover(+sl.dataset.pos, +sl.value); });
+let DEST = {};
+function renderDestaques() {
+  const tem = !!S.config.temDestaques;
+  $("#destLista").innerHTML = LH.LINHAS.map(l => {
+    const itens = ordenar(S.pecas.filter(p => !p.arquivada && p.linha === l.id));
+    const auto = itens.slice().sort((a, b) => b.criadoEm - a.criadoEm)[0];
+    const esc1 = itens.find(p => p.id === DEST[l.id]);
+    const mostra = esc1 || auto, f = mostra && mostra.fotos[0];
+    return `<div class="dest-item">
+      ${f ? `<img src="${esc(store.url(f))}" alt="">` : '<span class="vazio"></span>'}
+      <div><b>${esc(l.nome)}</b>
+        <select data-linha="${l.id}" aria-label="Foto de destaque de ${esc(l.nome)}" ${tem && itens.length ? "" : "disabled"}>
+          <option value="">${itens.length ? "Automático (mais recente)" : "Nenhuma peça nesta linha"}</option>
+          ${itens.map(p => `<option value="${esc(p.id)}" ${p.id === DEST[l.id] ? "selected" : ""}>${esc(p.nome)}${p.codigo ? " · " + esc(p.codigo) : ""}</option>`).join("")}
+        </select></div></div>`;
+  }).join("");
+  $("#destHint").innerHTML = tem ? "É a foto grande que a cliente vê em Semijoias e em Ouro depois de tocar em “Entrar na vitrine”. Em “Automático” aparece a peça cadastrada mais recente."
+    : "Para escolher a foto, rode antes o arquivo <b>destaques.sql</b> no Supabase (SQL Editor). Enquanto isso, aparece a peça cadastrada mais recente.";
+}
+$("#destLista").addEventListener("change", e => { const sl = e.target.closest("select[data-linha]"); if (!sl) return; DEST[sl.dataset.linha] = sl.value || null; renderDestaques(); });
 function abrirAjustes(focoOrdem) {
   $("#aColecao").value = S.config.colecao || ""; $("#aWhats").value = S.config.whatsapp || ""; $("#aInsta").value = S.config.instagram || "";
   ORDEM = ordenarCats([...new Set(S.pecas.map(catOf).filter(Boolean))]);
   renderOrdem();
+  DEST = Object.assign({}, S.config.destaques || {});
+  renderDestaques();
   $("#ajustes").hidden = false; document.body.style.overflow = "hidden";
   $("#ajForm").scrollTop = 0;
 }
@@ -903,7 +936,7 @@ $("#ajFechar").onclick = fecharAjustes;
 $("#ajSalvar").onclick = async () => {
   const ig = $("#aInsta").value.trim().replace(/^@+/, "");
   const antigas = (S.config.ordemCats || []).filter(x => !ORDEM.some(c => norm(c) === norm(x)));
-  const c = { colecao: $("#aColecao").value.trim(), whatsapp: $("#aWhats").value.trim(), instagram: ig ? "@" + ig : "", ordemCats: [...ORDEM, ...antigas] };
+  const c = { colecao: $("#aColecao").value.trim(), whatsapp: $("#aWhats").value.trim(), instagram: ig ? "@" + ig : "", ordemCats: [...ORDEM, ...antigas], destaques: DEST, temDestaques: !!S.config.temDestaques };
   try { await store.saveConfig(c); S.config = c; fecharAjustes(); render(); toast("Ajustes salvos"); } catch (e) { toast("Não foi possível salvar os ajustes."); }
 };
 document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("#editor").hidden) fecharEditor(true); if (!$("#ajustes").hidden) fecharAjustes(); } });
@@ -1335,7 +1368,7 @@ $("#arqImport").addEventListener("change", async e => {
     }
     const c = dados.config || {};
     const atual = S.config;
-    const mesclado = { colecao: atual.colecao || c.colecao || "", whatsapp: atual.whatsapp || c.whatsapp || "", instagram: atual.instagram || c.instagram || "", ordemCats: (atual.ordemCats && atual.ordemCats.length) ? atual.ordemCats : (c.ordemCats || []) };
+    const mesclado = { destaques: atual.destaques || {}, temDestaques: !!atual.temDestaques, colecao: atual.colecao || c.colecao || "", whatsapp: atual.whatsapp || c.whatsapp || "", instagram: atual.instagram || c.instagram || "", ordemCats: (atual.ordemCats && atual.ordemCats.length) ? atual.ordemCats : (c.ordemCats || []) };
     await store.saveConfig(mesclado); S.config = mesclado;
     await store.recarregar();
     const pulei = dados.pecas.length - novas.length;

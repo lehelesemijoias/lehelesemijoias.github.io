@@ -139,7 +139,8 @@
     const cx = M, cw = PW - 2 * M, top0 = 180, alt = 224, gap = 18, fotoH = 162;
     LH.LINHAS.forEach((l, i) => {
       const y = top0 + i * (alt + gap), itens = daLinha(l.id);
-      const capa = itens.slice().sort((a, b) => b.criadoEm - a.criadoEm)[0];
+      const escolhida = V.cfg.destaques && V.cfg.destaques[l.id];
+      const capa = itens.find(p => p.id === escolhida) || itens.slice().sort((a, b) => b.criadoEm - a.criadoEm)[0];
       const f = capa && capa.fotos[0];
       if (f) h += img(fotoURL(f.full || f.thumb), cx, y, cw, fotoH, "im", `object-position:50% 38%;background:${C.taupe}`);
       else {
@@ -436,7 +437,7 @@
       try {
         const antes = new Set(V.pecas.map(p => p.id));
         const d = await carregar();
-        const mudou = JSON.stringify([d.pecas, d.cfg.colecao, d.cfg.whatsapp, d.cfg.instagram, d.cfg.ordemCats]) !== JSON.stringify([V.pecas, V.cfg.colecao, V.cfg.whatsapp, V.cfg.instagram, V.cfg.ordemCats]);
+        const mudou = JSON.stringify([d.pecas, d.cfg.colecao, d.cfg.whatsapp, d.cfg.instagram, d.cfg.ordemCats, d.cfg.destaques]) !== JSON.stringify([V.pecas, V.cfg.colecao, V.cfg.whatsapp, V.cfg.instagram, V.cfg.ordemCats, V.cfg.destaques]);
         V.pecas = d.pecas; V.cfg = d.cfg;
         if (mudou) {
           const novas = d.pecas.filter(p => !antes.has(p.id)).length;

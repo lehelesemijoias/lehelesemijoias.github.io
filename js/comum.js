@@ -83,12 +83,15 @@
   });
   const rowToConfig = r => ({
     colecao: (r && r.colecao) || "", whatsapp: (r && r.whatsapp) || "", instagram: (r && r.instagram) || "",
-    ordemCats: (r && Array.isArray(r.ordem_cats)) ? r.ordem_cats : [], atualizadoEm: r ? Date.parse(r.atualizado_em) || 0 : 0
+    ordemCats: (r && Array.isArray(r.ordem_cats)) ? r.ordem_cats : [], atualizadoEm: r ? Date.parse(r.atualizado_em) || 0 : 0,
+    // peça escolhida como foto de destaque de cada linha (null = automático)
+    destaques: (r && r.destaques && typeof r.destaques === "object") ? r.destaques : {},
+    temDestaques: !!(r && "destaques" in r)
   });
-  const configToRow = c => ({
+  const configToRow = c => Object.assign({
     colecao: c.colecao || "", whatsapp: c.whatsapp || "", instagram: c.instagram || "",
     ordem_cats: c.ordemCats || [], atualizado_em: new Date().toISOString()
-  });
+  }, c.temDestaques ? { destaques: c.destaques || {} } : {});
 
   // linhas da vitrine (a ordem aqui é a ordem em que aparecem para a cliente)
   const LINHAS = [{ id: "semijoias", nome: "Semijoias" }, { id: "ouro", nome: "Ouro" }];
