@@ -182,6 +182,42 @@ img{max-width:100%}
 .share a{font-family:var(--display);font-size:18px;color:var(--gold-deep);word-break:break-all;text-decoration:none}
 .share-b{display:flex;gap:8px;flex-wrap:wrap}
 .btn.sm{min-height:40px;padding:0 14px;font-size:11px;letter-spacing:.14em}
+/* abas e acessos */
+.abas{display:flex;gap:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:4px;margin:0 0 18px}
+.abas button{flex:1;min-height:42px;border:none;border-radius:999px;background:transparent;font-size:12px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft)}
+.abas button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(58,46,31,.14)}
+.periodo{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+.periodo button{border:1px solid var(--line);background:transparent;border-radius:999px;min-height:38px;padding:0 16px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft)}
+.periodo button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px 16px}
+.kpi b{display:block;font-family:var(--display);font-weight:400;font-size:44px;line-height:1.05;color:var(--gold-deep);font-variant-numeric:tabular-nums;margin:6px 0 2px}
+.kpi .lbl{display:block;min-height:2.9em;line-height:1.45}
+.kpi small{font-size:12px;color:var(--ink-soft);line-height:1.35;display:block}
+.nota{font-size:12px;color:var(--ink-soft);margin:10px 0 24px;line-height:1.5}
+.sec-t{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 10px}
+.sec-t h3{margin:0;font-family:var(--display);font-weight:400;font-size:24px}
+.sec-t span{font-size:12px;color:var(--ink-soft)}
+.ranking{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.ranking li{display:grid;grid-template-columns:24px 56px minmax(0,1fr) auto;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 14px 8px 10px}
+.ranking .pos{font-family:var(--display);font-size:20px;color:var(--gold-deep);text-align:center}
+.ranking img,.ranking .semfoto{width:56px;height:56px;border-radius:8px;object-fit:cover;background:var(--surface-2);display:block}
+.ranking .nm{font-family:var(--display);font-size:16px;line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.ranking .sub{font-size:11px;color:var(--ink-soft);letter-spacing:.06em;margin-top:2px}
+.ranking .barra{height:3px;border-radius:3px;background:var(--surface-2);margin-top:6px;overflow:hidden}
+.ranking .barra i{display:block;height:100%;background:var(--gold)}
+.ranking .num{text-align:right;font-family:var(--display);font-size:24px;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
+.ranking .num small{display:block;font-family:var(--body);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin-top:4px}
+.ranking .num em{display:block;font-style:normal;font-family:var(--body);font-size:11px;color:var(--gold-deep);margin-top:4px;white-space:nowrap}
+.ranking li.fora{opacity:.6}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:4px}
+.seg label{position:relative;cursor:pointer}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg span{display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:10px;font-family:var(--display);font-size:18px;color:var(--ink-soft)}
+.seg input:checked + span{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(58,46,31,.14);outline:1px solid var(--gold)}
+.seg input:focus-visible + span{outline:2px solid var(--gold-deep)}
+.card .ouro{position:absolute;left:8px;top:8px;background:var(--gold);color:var(--on-gold);border-radius:999px;font-size:10px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;padding:3px 9px}
+.assinatura{text-align:center;font-size:12px;letter-spacing:.08em;color:var(--ink-soft);padding:32px 0 8px;margin:0}
 .gate{position:fixed;inset:0;z-index:80;background:var(--bg);display:grid;place-items:center;padding:24px 16px;overflow:auto}
 .gate-in{width:100%;max-width:380px;display:grid;gap:14px;text-align:center}
 .gate-in img{width:96px;height:96px;border-radius:50%;object-fit:cover;border:1px solid var(--gold);margin:0 auto}
@@ -211,6 +247,11 @@ img{max-width:100%}
 </header>
 
 <main>
+  <nav class="abas" id="abas" role="tablist" aria-label="Seções do painel" hidden>
+    <button type="button" role="tab" id="tabPecas" aria-selected="true" aria-controls="abaPecas">Peças</button>
+    <button type="button" role="tab" id="tabAcessos" aria-selected="false" aria-controls="abaAcessos">Acessos</button>
+  </nav>
+  <section id="abaPecas" role="tabpanel" aria-labelledby="tabPecas">
   <section class="share" id="shareBox" hidden>
     <div><span class="lbl">Sua vitrine online</span><a id="linkVitrine" href="#" target="_blank" rel="noopener"></a></div>
     <div class="share-b">
@@ -237,6 +278,17 @@ img{max-width:100%}
   </div>
   <p class="showing" id="mostrando" hidden></p>
   <div id="lista"><div class="loading">CARREGANDO VITRINE…</div></div>
+  </section>
+  <section id="abaAcessos" role="tabpanel" aria-labelledby="tabAcessos" hidden>
+    <div class="summary"><h2>Acessos</h2><button class="linkbtn" type="button" id="acAtualizar">Atualizar</button></div>
+    <div class="periodo" role="group" aria-label="Período">
+      <button type="button" data-dias="7" aria-pressed="true">7 dias</button>
+      <button type="button" data-dias="30" aria-pressed="false">30 dias</button>
+      <button type="button" data-dias="" aria-pressed="false">Total</button>
+    </div>
+    <div id="acConteudo"></div>
+  </section>
+  <p class="assinatura">Desenvolvido por Marcelino</p>
 </main>
 
 <div class="dock">
@@ -263,6 +315,13 @@ img{max-width:100%}
         <div class="photos" id="edFotos"></div>
         <input type="file" id="edArquivo" accept="image/*" multiple hidden>
         <p class="hint">A primeira foto é a capa da peça na vitrine. Toque na estrela para escolher outra capa.</p>
+      </div>
+      <div class="field">
+        <span class="lbl">Linha <span class="req">*</span></span>
+        <div class="seg" role="radiogroup" aria-label="Linha da peça">
+          <label><input type="radio" name="fLinha" value="semijoias" checked><span>Semijoias</span></label>
+          <label><input type="radio" name="fLinha" value="ouro"><span>Ouro</span></label>
+        </div>
       </div>
       <div class="field"><label for="fNome">Nome da peça <span class="req">*</span></label><input id="fNome" autocomplete="off" placeholder="Ex.: Brinco Gota Cristal" maxlength="60"></div>
       <div class="two">
@@ -497,6 +556,7 @@ async function entrarNoPainel(session) {
   $("#btnSair").hidden = false; $("#btnAjustes").hidden = false;
   $("#contaEmail").textContent = S.email ? "Conectado como " + S.email : "";
   S.canWrite = true;
+  $("#abas").hidden = false;
   setStatus(); prepararCompartilhar();
   if (iniciado) return;
   iniciado = true;
@@ -508,6 +568,75 @@ async function entrarNoPainel(session) {
     $("#lista").innerHTML = '<div class="empty"><h3>Não foi possível carregar</h3><p class="hint">Verifique a internet e se o script do Supabase foi executado (guia, passo 2).</p></div>';
   }
 }
+const faltaLinha = e => /linha/i.test(((e && (e.message || "")) + " " + (e && (e.details || e.hint || "")))) && /column|coluna|schema|find/i.test((e && e.message) || "");
+
+/* ---------- abas e acessos ---------- */
+const AC = { dias: 7, pedido: 0, verTodas: false };
+function mostrarAba(qual) {
+  const ac = qual === "acessos";
+  $("#abaPecas").hidden = ac; $("#abaAcessos").hidden = !ac;
+  $("#tabPecas").setAttribute("aria-selected", String(!ac)); $("#tabAcessos").setAttribute("aria-selected", String(ac));
+  $(".dock").hidden = ac;
+  document.body.style.paddingBottom = ac ? "24px" : "";
+  window.scrollTo(0, 0);
+  if (ac) carregarAcessos();
+}
+$("#tabPecas").onclick = () => mostrarAba("pecas");
+$("#tabAcessos").onclick = () => mostrarAba("acessos");
+$("#acAtualizar").onclick = () => carregarAcessos();
+document.querySelectorAll(".periodo button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".periodo button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  AC.dias = b.dataset.dias ? +b.dataset.dias : null; AC.verTodas = false;
+  carregarAcessos();
+});
+const milhar = n => String(n || 0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+const dataBR = iso => { const d = new Date(iso); return isNaN(d) ? "" : `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`; };
+async function carregarAcessos() {
+  const box = $("#acConteudo"), meu = ++AC.pedido;
+  if (!box.innerHTML) box.innerHTML = '<div class="loading">CARREGANDO ACESSOS…</div>';
+  box.style.opacity = ".55";
+  const { data, error } = await sb.rpc("resumo_acessos", { dias: AC.dias });
+  if (meu !== AC.pedido) return;
+  box.style.opacity = "";
+  if (error) {
+    console.error(error);
+    const falta = /resumo_acessos|PGRST202|42883|does not exist|not find/i.test((error.message || "") + " " + (error.code || ""));
+    box.innerHTML = falta
+      ? '<div class="empty"><h3>Falta ligar o contador</h3><p class="hint">No Supabase, abra o SQL Editor, cole o conteúdo do arquivo <b>acessos.sql</b> e toque em Run. Depois volte aqui e toque em Atualizar.</p></div>'
+      : '<div class="empty"><h3>Não foi possível carregar</h3><p class="hint">Verifique a internet e toque em Atualizar.</p></div>';
+    return;
+  }
+  renderAcessos(data || {});
+}
+function renderAcessos(d) {
+  const periodo = AC.dias ? `nos últimos ${AC.dias} dias` : "desde o início";
+  const lista = (d.pecas || []).filter(x => x.aberturas > 0 || x.zap > 0);
+  const porId = new Map(S.pecas.map(p => [p.id, p]));
+  const max = Math.max(1, ...lista.map(x => x.aberturas));
+  const mostrar = AC.verTodas ? lista : lista.slice(0, 10);
+  const itens = mostrar.map((x, i) => {
+    const p = porId.get(x.peca_id), f = p && p.fotos[0];
+    return `<li class="${!p || p.arquivada ? "fora" : ""}">
+      <span class="pos">${i + 1}</span>
+      ${f ? `<img src="${esc(store.url(f))}" alt="" loading="lazy">` : '<span class="semfoto"></span>'}
+      <div><div class="nm">${esc(p ? p.nome : "Peça excluída")}</div>
+        <div class="sub">${esc([p && p.codigo, p && catOf(p), p && p.arquivada ? "arquivada" : ""].filter(Boolean).join(" · "))}</div>
+        <div class="barra"><i style="width:${Math.round(x.aberturas / max * 100)}%"></i></div></div>
+      <div class="num">${milhar(x.aberturas)}<small>${x.aberturas === 1 ? "visualização" : "visualizações"}</small>${x.zap ? `<em>${milhar(x.zap)} no WhatsApp</em>` : ""}</div>
+    </li>`;
+  }).join("");
+  $("#acConteudo").innerHTML = `
+    <div class="kpis">
+      <div class="kpi"><span class="lbl">Visitas</span><b>${milhar(d.visitas)}</b><small>vezes que a vitrine foi aberta ${periodo}</small></div>
+      <div class="kpi"><span class="lbl">Clientes diferentes</span><b>${milhar(d.visitantes)}</b><small>aparelhos diferentes ${periodo}</small></div>
+    </div>
+    <p class="nota">${d.primeiro ? `Contando desde ${dataBR(d.primeiro)}. ` : ""}Aberturas do mesmo aparelho em menos de 30 minutos contam uma vez. Aparelhos com o painel conectado não entram na conta.</p>
+    <div class="sec-t"><h3>Peças mais vistas</h3><span>${lista.length ? `${lista.length} ${lista.length === 1 ? "peça" : "peças"}` : ""}</span></div>
+    ${lista.length ? `<ol class="ranking">${itens}</ol>${lista.length > 10 ? `<p style="text-align:center;margin:14px 0 0"><button class="btn sm" type="button" id="acTodas">${AC.verTodas ? "Mostrar só as 10 primeiras" : `Ver todas (${lista.length})`}</button></p>` : ""}`
+      : `<div class="empty"><h3>${d.visitas ? "Nenhuma peça aberta" : "Nenhuma visita"} ${periodo}</h3><p class="hint">Assim que as clientes abrirem a vitrine, os números aparecem aqui. Envie o link pelo botão “Enviar no WhatsApp” na aba Peças.</p></div>`}`;
+  const t = $("#acTodas"); if (t) t.onclick = () => { AC.verTodas = !AC.verTodas; renderAcessos(d); };
+}
+
 async function boot() {
   if (!LH.configurado()) { mostrarGate("gateConfig"); return; }
   sb = LH.criarCliente();
@@ -563,12 +692,12 @@ function render() {
   const pecas = [...todas.filter(p => !p.arquivada), ...todas.filter(p => p.arquivada)];
   const nArq = pecas.filter(p => p.arquivada).length;
   const cats = [...new Set(pecas.map(catOf).filter(Boolean))];
-  if (S.filtro && !["__sem", "__arq"].includes(S.filtro) && !cats.includes(S.filtro)) S.filtro = "";
+  if (S.filtro && !["__sem", "__arq", "__l:semijoias", "__l:ouro"].includes(S.filtro) && !cats.includes(S.filtro)) S.filtro = "";
   if (S.filtro === "__arq" && !nArq) S.filtro = "";
   $("#resumo").textContent = pecas.length ? `${pecas.length} ${pecas.length === 1 ? "peça" : "peças"}${cats.length ? " · " + cats.length + (cats.length === 1 ? " categoria" : " categorias") : ""}${nArq ? " · " + nArq + (nArq === 1 ? " arquivada" : " arquivadas") : ""}` : "";
   $("#tools").hidden = !pecas.length;
   $("#atalhoOrdem").hidden = !S.canWrite || cats.length < 2;
-  $("#filtroCat").innerHTML = `<option value="">Todas as categorias</option>` + cats.map(c => `<option value="${esc(c)}" ${c === S.filtro ? "selected" : ""}>${esc(c)}</option>`).join("") + (pecas.some(p => !catOf(p)) ? `<option value="__sem" ${S.filtro === "__sem" ? "selected" : ""}>Sem categoria</option>` : "") + (nArq ? `<option value="__arq" ${S.filtro === "__arq" ? "selected" : ""}>Arquivadas</option>` : "");
+  $("#filtroCat").innerHTML = `<option value="">Todas as categorias</option>` + cats.map(c => `<option value="${esc(c)}" ${c === S.filtro ? "selected" : ""}>${esc(c)}</option>`).join("") + (pecas.some(p => !catOf(p)) ? `<option value="__sem" ${S.filtro === "__sem" ? "selected" : ""}>Sem categoria</option>` : "") + (nArq ? `<option value="__arq" ${S.filtro === "__arq" ? "selected" : ""}>Arquivadas</option>` : "") + `<optgroup label="Linha">${LH.LINHAS.map(l => `<option value="__l:${l.id}" ${S.filtro === "__l:" + l.id ? "selected" : ""}>Só ${l.nome}</option>`).join("")}</optgroup>`;
   if (S.filtro === "__sem" && !pecas.some(p => !catOf(p))) S.filtro = "";
   $("#filtroCat").value = S.filtro;
   $("#filtroBox").classList.toggle("on", !!S.filtro);
@@ -590,13 +719,14 @@ function render() {
   const q = norm(S.busca), qc = q.replace(/[^a-z0-9]/g, "");
   const vis = pecas.filter(p => {
     if (S.filtro === "__arq") { if (!p.arquivada) return false; }
+    else if (S.filtro.startsWith("__l:")) { if (p.linha !== S.filtro.slice(4)) return false; }
     else if (S.filtro === "__sem" ? catOf(p) : (S.filtro && catOf(p) !== S.filtro)) return false;
     if (!q) return true;
     const cod = norm(p.codigo);
     return norm(p.nome).includes(q) || cod.includes(q) || (qc && cod.replace(/[^a-z0-9]/g, "").includes(qc));
   });
   const filtrando = !!(q || S.filtro);
-  const nomeCat = S.filtro === "__sem" ? "Sem categoria" : S.filtro === "__arq" ? "Arquivadas" : S.filtro;
+  const nomeCat = S.filtro === "__sem" ? "Sem categoria" : S.filtro === "__arq" ? "Arquivadas" : S.filtro.startsWith("__l:") ? LH.nomeLinha(S.filtro.slice(4)) : S.filtro;
   $("#mostrando").hidden = !filtrando;
   $("#mostrando").innerHTML = filtrando ? `<span>Mostrando ${vis.length} de ${pecas.length} ${pecas.length === 1 ? "peça" : "peças"}${nomeCat ? " em " + esc(nomeCat) : ""}</span><button class="linkbtn" type="button" data-limpar>Limpar filtros</button>` : "";
   if (!vis.length) {
@@ -608,7 +738,7 @@ function render() {
     const arq = !!p.arquivada;
     return `<div class="card${arq ? " arq" : ""}" data-id="${esc(p.id)}">
       <button class="open" type="button" ${S.canWrite ? "" : "tabindex='-1'"} aria-label="${S.canWrite ? "Editar " : ""}${esc(p.nome)}${arq ? " (arquivada)" : ""}">
-      <div class="ph">${f ? `<img loading="lazy" alt="" src="${esc(store.url(f))}">` : ""}${arq ? `<span class="flag">Arquivada</span>` : ""}${(p.fotos || []).length > 1 ? `<span class="count">${p.fotos.length} fotos</span>` : ""}</div>
+      <div class="ph">${f ? `<img loading="lazy" alt="" src="${esc(store.url(f))}">` : ""}${p.linha === "ouro" ? `<span class="ouro">Ouro</span>` : ""}${arq ? `<span class="flag">Arquivada</span>` : ""}${(p.fotos || []).length > 1 ? `<span class="count">${p.fotos.length} fotos</span>` : ""}</div>
       <div class="meta">${catOf(p) ? `<span class="cat">${esc(catOf(p))}</span>` : ""}<span class="nm">${esc(p.nome)}</span>
       <div class="row"><span class="ref">${esc(p.codigo || "")}</span><span class="pr">${esc(brl(p.valor) || "Sob consulta")}</span></div></div></button>
       ${S.canWrite ? `<button class="arch" type="button" data-arq="${esc(p.id)}" aria-label="${arq ? "Reativar" : "Arquivar"} ${esc(p.nome)}">${arq
@@ -639,7 +769,7 @@ async function alternarArquivo(id, btn) {
   try {
     await store.savePeca(id, { ...data, arquivada: arquivar, atualizadoEm: Date.now() });
     toast(arquivar ? "Peça arquivada. Ela saiu da vitrine." : "Peça reativada. Ela voltou para a vitrine.");
-  } catch (e) { btn.disabled = false; toast("Não foi possível arquivar. Verifique a conexão e tente de novo."); }
+  } catch (e) { btn.disabled = false; toast(faltaLinha(e) ? "Falta rodar o arquivo linha.sql no Supabase (SQL Editor)." : "Não foi possível arquivar. Verifique a conexão e tente de novo."); }
 }
 $("#btnAdd").onclick = () => abrirEditor(null);
 
@@ -650,6 +780,9 @@ function abrirEditor(p) {
   $("#edTitulo").textContent = p ? "Editar peça" : "Nova peça";
   $("#fNome").value = p?.nome || ""; $("#fCodigo").value = p?.codigo || ""; $("#fValor").value = fmtValorInput(p?.valor ?? null);
   $("#fCategoria").value = p?.categoria || ""; $("#fBanho").value = p?.banho || ""; $("#fDescricao").value = p?.descricao || "";
+  let linhaIni = p ? p.linha : "semijoias";
+  if (!p) { try { linhaIni = localStorage.getItem("lehele-ultima-linha") || "semijoias"; } catch (e) { } }
+  document.querySelectorAll('input[name="fLinha"]').forEach(r => r.checked = r.value === linhaIni);
   $("#edExcluir").hidden = !p;
   resetRodape();
   renderFotos();
@@ -711,8 +844,10 @@ async function salvarPeca() {
   const data = {
     nome, codigo: $("#fCodigo").value.trim(), valor: parseValor($("#fValor").value),
     categoria: $("#fCategoria").value.trim(), banho: $("#fBanho").value.trim(), descricao: $("#fDescricao").value.trim(),
+    linha: (document.querySelector('input[name="fLinha"]:checked') || {}).value || "semijoias",
     fotos: D.fotos, criadoEm: D.criadoEm || Date.now(), atualizadoEm: Date.now(), arquivada: !!D.arquivada
   };
+  try { localStorage.setItem("lehele-ultima-linha", data.linha); } catch (e) { }
   const btn = $("#edSalvar"); btn.disabled = true; btn.textContent = "Salvando…";
   try {
     await store.savePeca(D.id, data);
@@ -723,7 +858,7 @@ async function salvarPeca() {
     toast(novo ? "Peça publicada na vitrine" : "Alterações publicadas na vitrine");
   } catch (e) {
     btn.disabled = false; btn.textContent = "Salvar peça";
-    console.error(e); toast("Não foi possível salvar. Verifique a conexão e tente de novo.");
+    console.error(e); toast(faltaLinha(e) ? "Falta rodar o arquivo linha.sql no Supabase (SQL Editor). Depois tente salvar de novo." : "Não foi possível salvar. Verifique a conexão e tente de novo.");
   }
 }
 function pedirExclusao() {
@@ -817,7 +952,9 @@ function whatsLink(num, msg) {
 }
 
 async function gerarPDF() {
-  const pecas = ordenar(S.pecas.filter(p => !p.arquivada));
+  // Semijoias primeiro; as de Ouro vêm depois, com as categorias marcadas "Ouro · …"
+  const ativasPDF = ordenar(S.pecas.filter(p => !p.arquivada));
+  const pecas = [...ativasPDF.filter(p => p.linha !== "ouro"), ...ativasPDF.filter(p => p.linha === "ouro").map(p => ({ ...p, categoria: "Ouro · " + (catOf(p) || "Peças") }))];
   if (!pecas.length) return;
   const ov = $("#gerando"), bar = $("#gBarra"), txt = $("#gTexto");
   $("#gTitulo").textContent = "Criando sua vitrine"; $("#gBtns").hidden = true; ov.hidden = false; bar.style.width = "0%";
@@ -1165,7 +1302,7 @@ $("#btnBackup").onclick = async () => {
     for (const p of pecas) {
       const fotos = [];
       for (const f of p.fotos) { progresso("Preparando a cópia", `${p.nome} · foto ${fotos.length + 1}`, k++ / total); try { fotos.push(await blobParaDataURL(await store.blob(f))); } catch (e) { } }
-      out.pecas.push({ nome: p.nome, codigo: p.codigo, categoria: p.categoria, banho: p.banho, valor: p.valor, descricao: p.descricao, arquivada: p.arquivada, criadoEm: p.criadoEm, atualizadoEm: p.atualizadoEm, fotos });
+      out.pecas.push({ nome: p.nome, codigo: p.codigo, categoria: p.categoria, banho: p.banho, valor: p.valor, descricao: p.descricao, arquivada: p.arquivada, linha: p.linha, criadoEm: p.criadoEm, atualizadoEm: p.atualizadoEm, fotos });
     }
     const blob = new Blob([JSON.stringify(out)], { type: "application/json" });
     const nome = `lehele-backup-${new Date().toISOString().slice(0, 10)}.json`;
@@ -1193,7 +1330,7 @@ $("#arqImport").addEventListener("change", async e => {
         try { refs.push(await store.upload(await dataURLParaBlob(d))); } catch (err) { falhas++; }
       }
       if (!refs.length) { falhas++; continue; }
-      await store.savePeca(null, { nome: p.nome, codigo: p.codigo || "", categoria: p.categoria || "", banho: p.banho || "", valor: p.valor ?? null, descricao: p.descricao || "", arquivada: !!p.arquivada, criadoEm: p.criadoEm || Date.now(), fotos: refs });
+      await store.savePeca(null, { nome: p.nome, codigo: p.codigo || "", categoria: p.categoria || "", banho: p.banho || "", valor: p.valor ?? null, descricao: p.descricao || "", arquivada: !!p.arquivada, linha: p.linha === "ouro" ? "ouro" : "semijoias", criadoEm: p.criadoEm || Date.now(), fotos: refs });
       ok++;
     }
     const c = dados.config || {};

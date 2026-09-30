@@ -55,7 +55,7 @@
       }
       return `<a class="${c}" style="${st}" href="${esc(href)}"${ext ? ' target="_blank" rel="noopener"' : ""}${nav ? ` data-nav="${nav}"` : ""}>${esc(s)}</a>`;
     }
-    return `<div class="${c}" style="${st}">${esc(s)}</div>`;
+    return `<div class="${c}" style="${st}pointer-events:none">${esc(s)}</div>`;
   }
   const box = (x, y, w, h) => `left:${U(x)};top:${U(y)};width:${U(w)};height:${U(h)}`;
   const rect = (x, y, w, h, { fill = null, stroke = null, lw = 0.5, r = 0 } = {}) =>
@@ -67,12 +67,14 @@
   };
   const divisor = (cx, y, w, cor = C.deep) => hline(cx - w / 2, cx - 9, y, cor) + hline(cx + 9, cx + w / 2, y, cor) + estrela(cx, y, 4.2, cor);
   const moldura = (cor = C.gold) => rect(14, 14, PW - 28, PH - 28, { stroke: cor, lw: 0.6 }) + rect(18, 18, PW - 36, PH - 36, { stroke: cor, lw: 0.25 });
-  const link = (x, y, w, h, href, o = {}) => `<a class="hit" style="${box(x, y, w, h)}" href="${esc(href)}"${o.ext ? ' target="_blank" rel="noopener"' : ""}${o.nav ? ` data-nav="${o.nav}"` : ""} aria-label="${esc(o.label || "")}"></a>`;
+  const link = (x, y, w, h, href, o = {}) => `<a class="hit" style="${box(x, y, w, h)}" href="${esc(href)}"${o.ext ? ' target="_blank" rel="noopener"' : ""}${o.nav ? ` data-nav="${o.nav}"` : ""}${o.zap ? ` data-zap="${esc(o.zap)}"` : ""} aria-label="${esc(o.label || "")}"></a>`;
   const img = (src, x, y, w, h, cls = "im", extra = "") => `<img class="${cls}" src="${esc(src)}" alt="" style="${box(x, y, w, h)};${extra}" loading="eager" decoding="async">`;
   const selo = (x, y) => `<div class="pill t b" style="${box(x, y, 58, 13)};background:${C.deep};color:${C.paper};font-size:${U(6)};letter-spacing:${U(1.6)};--sw:${U(0.25)};z-index:2">NOVIDADE</div>`;
 
   /* ---------- dados ---------- */
   const ativas = () => ordenar(V.cfg, V.pecas.filter(p => !p.arquivada));
+  const daLinha = id => ativas().filter(p => p.linha === id);
+  const ehLinha = m => LH.LINHAS.some(l => l.id === m);
   const ehNova = p => p.criadoEm > V.novDesde;
   const thumbDe = p => { const f = p.fotos[0]; return f ? fotoURL(f.thumb || f.full) : ""; };
 
@@ -121,27 +123,62 @@
     const bw = 214, bx = (PW - bw) / 2, by = PH - 102;
     h += rect(bx, by, bw, 38, { stroke: C.deep, lw: 0.9, r: 19 });
     h += T("ENTRAR NA VITRINE  ›", PW / 2, by + 23, { size: 10, color: C.ink, cs: 2.6, align: "center", bold: true });
-    h += link(bx, by, bw, 38, "#indice-1", { label: "Entrar na vitrine", nav: "next" });
+    h += link(bx, by, bw, 38, "#linhas", { label: "Entrar na vitrine", nav: "next" });
     return { bg: C.taupe, html: h };
   }
 
+  // escolha da linha: Semijoias ou Ouro
+  function paginaLinhas() {
+    const cfg = V.cfg;
+    let h = moldura();
+    h += img("assets/emblema.jpg", PW / 2 - 29, 34, 58, 54, "im");
+    h += `<div style="${box(PW / 2 - 33, 28, 66, 66)};border:max(${U(0.5)},.5px) solid ${C.gold};border-radius:50%;pointer-events:none"></div>`;
+    h += T("Vitrine", PW / 2, 126, { size: 30, color: C.ink, align: "center" });
+    h += T("ESCOLHA UMA LINHA", PW / 2, 143, { size: 7.5, color: C.deep, cs: 3, align: "center" });
+    h += divisor(PW / 2, 157, 150);
+    const cx = M, cw = PW - 2 * M, top0 = 180, alt = 224, gap = 18, fotoH = 162;
+    LH.LINHAS.forEach((l, i) => {
+      const y = top0 + i * (alt + gap), itens = daLinha(l.id);
+      const capa = itens.slice().sort((a, b) => b.criadoEm - a.criadoEm)[0];
+      const f = capa && capa.fotos[0];
+      if (f) h += img(fotoURL(f.full || f.thumb), cx, y, cw, fotoH, "im", `object-position:50% 38%;background:${C.taupe}`);
+      else {
+        h += rect(cx, y, cw, fotoH, { fill: C.taupe });
+        h += img("assets/emblema.jpg", PW / 2 - 40, y + fotoH / 2 - 38, 80, 75, "im", "opacity:.55");
+      }
+      h += rect(cx + 5, y + 5, cw - 10, fotoH - 10, { stroke: "#FFFFFF", lw: 0.4 });
+      h += rect(cx, y + fotoH, cw, alt - fotoH, { fill: C.paper });
+      h += rect(cx, y, cw, alt, { stroke: C.gold, lw: 0.6 });
+      h += hline(cx, cx + cw, y + fotoH, C.gold, 0.4);
+      if (itens.some(ehNova)) h += selo(cx + 9, y + 9);
+      h += T(l.nome, PW / 2, y + fotoH + 31, { size: 24, color: C.ink, align: "center" });
+      h += T(itens.length ? `${itens.length} ${itens.length === 1 ? "PEÇA" : "PEÇAS"}  ›` : "EM BREVE", PW / 2, y + fotoH + 50, { size: 8, color: itens.length ? C.deep : C.soft, cs: 3, align: "center", bold: !!itens.length });
+      if (itens.length) h += link(cx, y, cw, alt, `#${l.id}-1`, { label: `Ver ${l.nome}` });
+    });
+    const FY = PH - 36, nav = { size: 9, color: C.deep, cs: 2, bold: true };
+    h += T("‹  CAPA", M, FY, { ...nav, href: "#capa", nav: "prev" });
+    if (cfg.whatsapp || cfg.instagram) h += T("ATENDIMENTO  ›", PW - M, FY, { ...nav, align: "right", href: "#atendimento" });
+    return { bg: C.cream, html: h };
+  }
+
+  // modo = "novidades" ou o id da linha ("semijoias" / "ouro")
   function paginaIndice(m, modo) {
-    const todas = ativas();
-    const lista = modo === "novidades" ? todas.filter(ehNova) : todas;
+    const lista = modo === "novidades" ? ativas().filter(ehNova) : daLinha(modo);
     const { pags } = planoIndice(lista);
     m = Math.max(0, Math.min(m, pags.length - 1));
-    const base = modo === "novidades" ? "#novidades-" : "#indice-";
+    const base = modo === "novidades" ? "#novidades-" : `#${modo}-`;
+    const titulo = modo === "novidades" ? "Novidades" : LH.nomeLinha(modo);
     const cfg = V.cfg;
     let h = moldura();
     if (m === 0) {
       h += img("assets/emblema.jpg", PW / 2 - 29, 34, 58, 54, "im");
       h += `<div style="${box(PW / 2 - 33, 28, 66, 66)};border:max(${U(0.5)},.5px) solid ${C.gold};border-radius:50%;pointer-events:none"></div>`;
-      h += T(modo === "novidades" ? "Novidades" : "Vitrine", PW / 2, 126, { size: 30, color: C.ink, align: "center" });
+      h += T(titulo, PW / 2, 126, { size: 30, color: C.ink, align: "center" });
       h += T(modo === "novidades" ? "DESDE A SUA ÚLTIMA VISITA" : (cfg.colecao || "Le Helê Semi Joias").toUpperCase(), PW / 2, 143, { size: 7.5, color: C.deep, cs: 3, align: "center" });
       h += divisor(PW / 2, 157, 150);
       h += T("TOQUE EM UMA PEÇA PARA VER OS DETALHES", PW / 2, 172, { size: 5.8, color: C.soft, cs: 2, align: "center" });
     } else {
-      h += T(modo === "novidades" ? "NOVIDADES" : "VITRINE", M, 46, { size: 8, color: C.deep, cs: 3.5 });
+      h += T(titulo.toUpperCase(), M, 46, { size: 8, color: C.deep, cs: 3.5 });
       h += T("LE HELÊ", PW - M, 46, { size: 8, color: C.deep, cs: 3.5, align: "right" });
       h += hline(M, PW - M, 54, C.gold, 0.3);
     }
@@ -165,12 +202,14 @@
       h += link(it.x, it.y, colW, cardH - 4, `#peca-${p.id}`, { label: p.nome });
     }
     const FY = PH - 36, nav = { size: 9, color: C.deep, cs: 2, bold: true };
-    const esq = m === 0 ? (modo === "novidades" ? ["‹  CAPA", "#capa"] : ["‹  CAPA", "#capa"]) : ["‹  ANTERIOR", base + m];
+    const esq = m === 0 ? (modo === "novidades" ? ["‹  CAPA", "#capa"] : ["‹  LINHAS", "#linhas"]) : ["‹  ANTERIOR", base + m];
     h += T(esq[0], M, FY, { ...nav, href: esq[1], nav: "prev" });
     const temContato = !!(cfg.whatsapp || cfg.instagram);
     let dir = null;
+    const outra = modo === "novidades" ? null : LH.LINHAS.find(l => l.id !== modo && daLinha(l.id).length);
     if (m < pags.length - 1) dir = ["PRÓXIMA  ›", base + (m + 2)];
-    else if (modo === "novidades") dir = ["VITRINE COMPLETA  ›", "#indice-1"];
+    else if (modo === "novidades") dir = ["VITRINE COMPLETA  ›", "#linhas"];
+    else if (outra) dir = [outra.nome.toUpperCase() + "  ›", `#${outra.id}-1`];
     else if (temContato) dir = ["ATENDIMENTO  ›", "#atendimento"];
     if (dir) h += T(dir[0], PW - M, FY, { ...nav, align: "right", href: dir[1], nav: "next" });
     if (pags.length > 1) h += T(`${m + 1} / ${pags.length}`, PW / 2, FY, { size: 8, color: C.soft, cs: 1.5, align: "center" });
@@ -178,12 +217,13 @@
   }
 
   function paginaPeca(id) {
-    const lista = ativas(), idx = lista.findIndex(p => p.id === id);
-    if (idx < 0) return null;
+    const alvo = ativas().find(p => p.id === id);
+    if (!alvo) return null;
+    const lista = daLinha(alvo.linha), idx = lista.findIndex(p => p.id === id);
     const p = lista[idx], fotos = p.fotos, cfg = V.cfg;
     const { onde } = planoIndice(lista);
     let h = moldura();
-    h += T("‹  ÍNDICE", 30, 44, { size: 11.5, color: C.deep, cs: 2.2, bold: true, href: "#indice-" + (onde.get(p.id) || 1) });
+    h += T("‹  ÍNDICE", 30, 44, { size: 11.5, color: C.deep, cs: 2.2, bold: true, href: `#${p.linha}-${onde.get(p.id) || 1}` });
     h += T(`${String(idx + 1).padStart(2, "0")} / ${String(lista.length).padStart(2, "0")}`, PW / 2, 44, { size: 7.5, color: C.soft, cs: 1.5, align: "center" });
     const ant = lista[idx - 1], seg = lista[idx + 1];
     h += T("›", PW - 30, 49, { size: 30, color: seg ? C.deep : C.taupe, align: "right", bold: !!seg });
@@ -244,7 +284,7 @@
       const w = 222, hh = 38, x = (PW - w) / 2, yb = PH - 92;
       h += rect(x, yb, w, hh, { fill: C.deep, r: 19 });
       h += T("QUERO ESTA PEÇA", PW / 2, yb + 23, { size: 10, color: C.paper, cs: 2.8, align: "center", bold: true });
-      h += link(x, yb, w, hh, zap, { ext: true, label: "Quero esta peça (WhatsApp)" });
+      h += link(x, yb, w, hh, zap, { ext: true, label: "Quero esta peça (WhatsApp)", zap: p.id });
       h += T("ATENDIMENTO PELO WHATSAPP", PW / 2, yb + hh + 12, { size: 5.5, color: C.soft, cs: 1.8, align: "center" });
     }
     // pré-carrega a próxima peça
@@ -292,7 +332,7 @@
       h += T("@" + hd, PW / 2, yk + 24, { size: 17, color: C.ink, align: "center", href: "https://instagram.com/" + encodeURIComponent(hd), ext: true });
     }
     h += T("Para a mais bela das belas.", PW / 2, PH - 110, { size: 13, color: C.deep, align: "center" });
-    h += T("‹  VOLTAR AO ÍNDICE", PW / 2, PH - 60, { size: 9, color: C.ink, cs: 2.2, align: "center", bold: true, href: "#indice-1", nav: "prev" });
+    h += T("‹  VOLTAR À VITRINE", PW / 2, PH - 60, { size: 9, color: C.ink, cs: 2.2, align: "center", bold: true, href: "#linhas", nav: "prev" });
     return { bg: C.taupe, html: h };
   }
 
@@ -301,7 +341,8 @@
     const hsh = decodeURIComponent(location.hash.replace(/^#/, ""));
     let m;
     if (!hsh || hsh === "capa") return { tipo: "capa" };
-    if ((m = hsh.match(/^indice-(\d+)$/))) return { tipo: "indice", n: +m[1] - 1 };
+    if (hsh === "linhas" || /^indice-\d+$/.test(hsh)) return { tipo: "linhas" };
+    if ((m = hsh.match(/^(semijoias|ouro)-(\d+)$/))) return { tipo: "indice", linha: m[1], n: +m[2] - 1 };
     if ((m = hsh.match(/^novidades-(\d+)$/))) return { tipo: "novidades", n: +m[1] - 1 };
     if ((m = hsh.match(/^peca-(.+)-foto-(\d+)$/))) return { tipo: "foto", id: m[1], k: +m[2] };
     if ((m = hsh.match(/^peca-(.+)$/))) return { tipo: "peca", id: m[1] };
@@ -313,12 +354,13 @@
     const r = rota();
     let pg = null;
     if (r.tipo === "capa") pg = paginaCapa();
-    else if (r.tipo === "indice") pg = paginaIndice(r.n, "indice");
-    else if (r.tipo === "novidades") pg = ativas().some(ehNova) ? paginaIndice(r.n, "novidades") : paginaIndice(0, "indice");
-    else if (r.tipo === "peca") pg = paginaPeca(r.id);
+    else if (r.tipo === "linhas") pg = paginaLinhas();
+    else if (r.tipo === "indice") pg = daLinha(r.linha).length ? paginaIndice(r.n, r.linha) : null;
+    else if (r.tipo === "novidades") pg = ativas().some(ehNova) ? paginaIndice(r.n, "novidades") : null;
+    else if (r.tipo === "peca") { pg = paginaPeca(r.id); if (pg) registrar("peca", r.id); }
     else if (r.tipo === "foto") pg = paginaFoto(r.id, r.k);
     else if (r.tipo === "atendimento") pg = (V.cfg.whatsapp || V.cfg.instagram) ? paginaAtendimento() : null;
-    if (!pg) { location.replace("#indice-1"); return; }
+    if (!pg) { location.replace("#linhas"); return; }
     app.style.background = pg.bg;
     document.querySelector('meta[name="theme-color"]').setAttribute("content", pg.bg);
     app.innerHTML = `<div class="st" style="background:${pg.bg}">${pg.html}</div>`;
@@ -353,6 +395,31 @@
 
   /* ---------- carregar e acompanhar mudanças ---------- */
   let sb = null;
+
+  /* ---------- contador de acessos ----------
+     Anota: abriu a vitrine, abriu uma peça, tocou em "Quero esta peça".
+     Não conta a dona (aparelho com o painel conectado) e não repete a mesma
+     anotação em menos de 30 minutos. O visitante é só um código aleatório do aparelho. */
+  function visitante() {
+    try {
+      let v = localStorage.getItem("lehele-visitante");
+      if (!v) { v = (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)).replace(/-/g, ""); localStorage.setItem("lehele-visitante", v); }
+      return v;
+    } catch (e) { return "semlocal" + Math.random().toString(36).slice(2, 12); }
+  }
+  function ehDaLoja() {
+    try {
+      const tem = st => Object.keys(st).some(k => /^sb-.+-auth-token$/.test(k));
+      return tem(localStorage) || tem(sessionStorage);
+    } catch (e) { return false; }
+  }
+  function registrar(tipo, pecaId) {
+    if (!sb || ehDaLoja()) return;
+    const chave = "lehele-reg-" + tipo + "-" + (pecaId || "");
+    try { const t = +sessionStorage.getItem(chave) || 0; if (Date.now() - t < 30 * 60e3) return; sessionStorage.setItem(chave, String(Date.now())); } catch (e) { }
+    try { sb.from("acessos").insert({ tipo, visitante: visitante(), peca_id: pecaId || null }).then(() => { }, () => { }); } catch (e) { }
+  }
+  app.addEventListener("click", e => { const a = e.target.closest("[data-zap]"); if (a) registrar("zap", a.getAttribute("data-zap")); });
   async function carregar() {
     const [r1, r2] = await Promise.all([
       sb.from("pecas").select("*").eq("arquivada", false).order("criado_em", { ascending: true }),
@@ -400,6 +467,7 @@
       sb = criarCliente();
       const d = await carregar();
       V.pecas = d.pecas; V.cfg = d.cfg; V.pronto = true;
+      registrar("visita");
       desenhar();
     } catch (e) {
       console.error(e);

@@ -69,13 +69,15 @@
     id: r.id, nome: r.nome || "", codigo: r.codigo || "", categoria: r.categoria || "", banho: r.banho || "",
     valor: r.valor == null ? null : Number(r.valor), descricao: r.descricao || "",
     fotos: Array.isArray(r.fotos) ? r.fotos.filter(f => f && (f.full || f.thumb)) : [],
-    arquivada: !!r.arquivada, criadoEm: Date.parse(r.criado_em) || 0, atualizadoEm: Date.parse(r.atualizado_em) || 0
+    arquivada: !!r.arquivada, criadoEm: Date.parse(r.criado_em) || 0, atualizadoEm: Date.parse(r.atualizado_em) || 0,
+    linha: r.linha === "ouro" ? "ouro" : "semijoias"
   });
   const pecaToRow = d => ({
     nome: d.nome, codigo: d.codigo || "", categoria: d.categoria || "", banho: d.banho || "",
     valor: d.valor == null ? null : Math.round(d.valor), descricao: d.descricao || "",
     fotos: (d.fotos || []).map(f => Object.assign({ full: f.full, thumb: f.thumb || f.full }, f.w && f.h ? { w: f.w, h: f.h } : {})),
     arquivada: !!d.arquivada,
+    linha: d.linha === "ouro" ? "ouro" : "semijoias",
     criado_em: new Date(d.criadoEm || Date.now()).toISOString(),
     atualizado_em: new Date().toISOString()
   });
@@ -88,10 +90,14 @@
     ordem_cats: c.ordemCats || [], atualizado_em: new Date().toISOString()
   });
 
+  // linhas da vitrine (a ordem aqui é a ordem em que aparecem para a cliente)
+  const LINHAS = [{ id: "semijoias", nome: "Semijoias" }, { id: "ouro", nome: "Ouro" }];
+  const nomeLinha = id => (LINHAS.find(l => l.id === id) || LINHAS[0]).nome;
+
   function fotoURL(path) {
     if (!path) return "";
     return criarCliente().storage.from("fotos").getPublicUrl(path).data.publicUrl;
   }
 
-  window.LH = { CFG, configurado, criarCliente, manterConectado, esc, brl, mesAno, catOf, norm, rankCat, ordenarCats, ordenar, whatsLink, rowToPeca, pecaToRow, rowToConfig, configToRow, fotoURL };
+  window.LH = { LINHAS, nomeLinha, CFG, configurado, criarCliente, manterConectado, esc, brl, mesAno, catOf, norm, rankCat, ordenarCats, ordenar, whatsLink, rowToPeca, pecaToRow, rowToConfig, configToRow, fotoURL };
 })();
