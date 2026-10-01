@@ -68,6 +68,7 @@
   const rowToPeca = r => ({
     id: r.id, nome: r.nome || "", codigo: r.codigo || "", categoria: r.categoria || "", banho: r.banho || "",
     valor: r.valor == null ? null : Number(r.valor), descricao: r.descricao || "",
+    valorAntigo: r.valor_antigo == null ? null : Number(r.valor_antigo),
     fotos: Array.isArray(r.fotos) ? r.fotos.filter(f => f && (f.full || f.thumb)) : [],
     arquivada: !!r.arquivada, criadoEm: Date.parse(r.criado_em) || 0, atualizadoEm: Date.parse(r.atualizado_em) || 0,
     linha: r.linha === "ouro" ? "ouro" : "semijoias"
@@ -75,6 +76,7 @@
   const pecaToRow = d => ({
     nome: d.nome, codigo: d.codigo || "", categoria: d.categoria || "", banho: d.banho || "",
     valor: d.valor == null ? null : Math.round(d.valor), descricao: d.descricao || "",
+    ...(colunas.valorAntigo ? { valor_antigo: d.valorAntigo == null ? null : Math.round(d.valorAntigo) } : {}),
     fotos: (d.fotos || []).map(f => Object.assign({ full: f.full, thumb: f.thumb || f.full }, f.w && f.h ? { w: f.w, h: f.h } : {})),
     arquivada: !!d.arquivada,
     linha: d.linha === "ouro" ? "ouro" : "semijoias",
@@ -86,14 +88,36 @@
     ordemCats: (r && Array.isArray(r.ordem_cats)) ? r.ordem_cats : [], atualizadoEm: r ? Date.parse(r.atualizado_em) || 0 : 0,
     // peça escolhida como foto de destaque de cada linha (null = automático)
     destaques: (r && r.destaques && typeof r.destaques === "object") ? r.destaques : {},
-    temDestaques: !!(r && "destaques" in r)
+    temDestaques: !!(r && "destaques" in r),
+    // pagamento mostrado na vitrine (Pix com desconto e parcelas sem juros)
+    pixDesconto: r && r.pix_desconto != null ? Number(r.pix_desconto) : 0,
+    parcelasMax: r && r.parcelas_max != null ? Number(r.parcelas_max) : 0,
+    parcelaMin: r && r.parcela_min != null ? Number(r.parcela_min) : 0,
+    temPagamento: !!(r && "pix_desconto" in r)
   });
   const configToRow = c => Object.assign({
     colecao: c.colecao || "", whatsapp: c.whatsapp || "", instagram: c.instagram || "",
     ordem_cats: c.ordemCats || [], atualizado_em: new Date().toISOString()
-  }, c.temDestaques ? { destaques: c.destaques || {} } : {});
+  }, c.temDestaques ? { destaques: c.destaques || {} } : {},
+    c.temPagamento ? { pix_desconto: Number(c.pixDesconto) || 0, parcelas_max: Math.max(0, Math.round(c.parcelasMax || 0)), parcela_min: Math.max(0, Math.round(c.parcelaMin || 0)) } : {});
 
   // linhas da vitrine (a ordem aqui é a ordem em que aparecem para a cliente)
+  // colunas novas que só existem depois de rodar o SQL correspondente
+  const colunas = { valorAntigo: false };
+
+  // preço no Pix e parcelas sem juros, conforme os Ajustes
+  function pagamento(cfg, valor) {
+    if (valor == null) return null;
+    const pix = cfg && cfg.pixDesconto > 0 ? Math.round(valor * (1 - cfg.pixDesconto)) : null;
+    let n = 0;
+    if (cfg && cfg.parcelasMax > 1) {
+      n = cfg.parcelaMin > 0 ? Math.min(cfg.parcelasMax, Math.floor(valor / cfg.parcelaMin)) : cfg.parcelasMax;
+      if (n < 2) n = 0;
+    }
+    return { pix, pixPct: cfg ? cfg.pixDesconto : 0, parcelas: n, parcela: n ? Math.ceil(valor / n) : null };
+  }
+  const pctTxt = x => String(+(x * 100).toFixed(1)).replace(".", ",") + "%";
+
   const LINHAS = [{ id: "semijoias", nome: "Semijoias" }, { id: "ouro", nome: "Ouro" }];
   const nomeLinha = id => (LINHAS.find(l => l.id === id) || LINHAS[0]).nome;
 
@@ -102,5 +126,5 @@
     return criarCliente().storage.from("fotos").getPublicUrl(path).data.publicUrl;
   }
 
-  window.LH = { LINHAS, nomeLinha, CFG, configurado, criarCliente, manterConectado, esc, brl, mesAno, catOf, norm, rankCat, ordenarCats, ordenar, whatsLink, rowToPeca, pecaToRow, rowToConfig, configToRow, fotoURL };
+  window.LH = { colunas, pagamento, pctTxt, LINHAS, nomeLinha, CFG, configurado, criarCliente, manterConectado, esc, brl, mesAno, catOf, norm, rankCat, ordenarCats, ordenar, whatsLink, rowToPeca, pecaToRow, rowToConfig, configToRow, fotoURL };
 })();

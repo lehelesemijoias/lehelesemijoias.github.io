@@ -4,11 +4,11 @@
    Lê as peças do Supabase e se atualiza sozinha.
    ========================================================= */
 (function () {
-  const { esc, brl, catOf, ordenar, whatsLink, rowToPeca, rowToConfig, fotoURL, configurado, criarCliente } = LH;
+  const { esc, brl, catOf, ordenar, whatsLink, rowToPeca, rowToConfig, fotoURL, configurado, criarCliente, pagamento } = LH;
   const PW = 405, PH = 720;
   const C = { taupe: "#D0BFA8", cream: "#EBDECA", gold: "#C8A96A", deep: "#A9823E", ink: "#4A3A22", soft: "#8A7150", paper: "#F4ECDF", cat: "#6E5122" };
   const app = document.getElementById("app");
-  const V = { pecas: [], cfg: {}, novDesde: 0, pronto: false };
+  const V = { pecas: [], cfg: {}, novDesde: 0, pronto: false, desejadas: new Set() };
   const n2 = v => Math.round(v * 100) / 100;
   const U = v => `calc(var(--u)*${n2(v)})`;
 
@@ -69,7 +69,18 @@
   const moldura = (cor = C.gold) => rect(14, 14, PW - 28, PH - 28, { stroke: cor, lw: 0.6 }) + rect(18, 18, PW - 36, PH - 36, { stroke: cor, lw: 0.25 });
   const link = (x, y, w, h, href, o = {}) => `<a class="hit" style="${box(x, y, w, h)}" href="${esc(href)}"${o.ext ? ' target="_blank" rel="noopener"' : ""}${o.nav ? ` data-nav="${o.nav}"` : ""}${o.zap ? ` data-zap="${esc(o.zap)}"` : ""} aria-label="${esc(o.label || "")}"></a>`;
   const img = (src, x, y, w, h, cls = "im", extra = "") => `<img class="${cls}" src="${esc(src)}" alt="" style="${box(x, y, w, h)};${extra}" loading="eager" decoding="async">`;
-  const selo = (x, y) => `<div class="pill t b" style="${box(x, y, 58, 13)};background:${C.deep};color:${C.paper};font-size:${U(6)};letter-spacing:${U(1.6)};--sw:${U(0.25)};z-index:2">NOVIDADE</div>`;
+  const SELOS = { novidade: ["NOVIDADE", C.deep, C.paper], oferta: ["OFERTA", C.ink, C.paper], desejada: ["MAIS DESEJADA", C.gold, C.ink] };
+  const selo = (x, y, tipo = "novidade") => { const [t, bg, cor] = SELOS[tipo]; const w = largura(t, 6, 1.6) + 16;
+    return `<div class="pill t b" style="${box(x, y, w, 13)};background:${bg};color:${cor};font-size:${U(6)};letter-spacing:${U(1.6)};--sw:${U(0.25)};z-index:2">${t}</div>`; };
+  const emOferta = p => p.valorAntigo != null && p.valor != null && p.valorAntigo > p.valor;
+  // até "max" selos empilhados no canto da foto
+  function selosDe(p, x, y, { novidade = true, max = 2 } = {}) {
+    const l = [];
+    if (emOferta(p)) l.push("oferta");
+    if (novidade && ehNova(p)) l.push("novidade");
+    if (V.desejadas.has(p.id)) l.push("desejada");
+    return l.slice(0, max).map((t, i) => selo(x, y + i * 16, t)).join("");
+  }
 
   // botão de navegação em pílula (passar página). lado: "esq" | "dir" | "centro"; cheio = dourado preenchido
   const NAV_S = 10, NAV_CS = 2, NAV_H = 30, NAV_PAD = 15;
@@ -81,6 +92,50 @@
     h += link(x0 - 4, y0 - 6, w + 8, NAV_H + 12, href, { nav, label: label || rotulo.replace(/[‹›]/g, "").trim() });
     return { h, x0, w };
   }
+
+  /* ---------- sacolinha (fica guardada só neste aparelho) ---------- */
+  const SAC_KEY = "lehele-sacola";
+  let sacMem = [];
+  function sacola() {
+    let l = sacMem;
+    try { const t = localStorage.getItem(SAC_KEY); if (t) l = JSON.parse(t); } catch (e) { }
+    if (!Array.isArray(l)) l = [];
+    const ok = new Set(ativas().map(p => p.id));
+    return l.filter(i => i && ok.has(i.id)).map(i => ({ id: i.id, q: Math.max(1, Math.min(20, i.q | 0 || 1)) }));
+  }
+  function salvarSacola(l) { sacMem = l; try { localStorage.setItem(SAC_KEY, JSON.stringify(l)); } catch (e) { } }
+  const usaSacola = () => !!V.cfg.whatsapp;
+  const qtdSacola = () => sacola().reduce((s, i) => s + i.q, 0);
+  const naSacola = id => sacola().some(i => i.id === id);
+  function mudarSacola(id, delta, zerar = false) {
+    let l = sacola(); const i = l.find(x => x.id === id);
+    if (i) { i.q = zerar ? 0 : i.q + delta; l = l.filter(x => x.q > 0); }
+    else if (delta > 0) l.push({ id, q: delta });
+    salvarSacola(l.map(x => ({ id: x.id, q: Math.min(20, x.q) })));
+  }
+  // ícone de sacola (desenhado), cor do traço
+  const iconeSacola = (x, y, w, cor) => `<svg viewBox="0 0 24 24" style="${box(x, y, w, w)};pointer-events:none" fill="none" stroke="${cor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.2 12.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 10V7a3 3 0 0 1 6 0v3"/></svg>`;
+  // botão redondo da sacola com o número de peças (canto de cima, à direita)
+  function botaoSacola(x, y, D = 34) {
+    const n = qtdSacola();
+    if (!usaSacola() || !n) return "";
+    let h = rect(x, y, D, D, { fill: C.deep, r: D / 2 }) + iconeSacola(x + D * 0.24, y + D * 0.2, D * 0.52, C.paper);
+    const bd = 15, bx = x + D - bd + 3, by = y - 3;
+    h += rect(bx, by, bd, bd, { fill: C.ink, r: bd / 2 });
+    h += `<div class="t b" style="${box(bx, by + 0.5, bd, bd)};display:flex;align-items:center;justify-content:center;font-size:${U(7.5)};color:${C.paper};--sw:${U(0.2)};pointer-events:none">${n > 9 ? "9+" : n}</div>`;
+    h += link(x - 6, y - 6, D + 12, D + 12, "#sacola", { label: `Ver sacola (${n} ${n === 1 ? "peça" : "peças"})` });
+    return h;
+  }
+  // linha com Pix e parcelas para um valor
+  function linhaPagamento(valor) {
+    const pg = pagamento(V.cfg, valor);
+    if (!pg) return "";
+    const partes = [];
+    if (pg.pix != null) partes.push(`${brl(pg.pix)} NO PIX`);
+    if (pg.parcelas) partes.push(`${partes.length ? "OU " : ""}${pg.parcelas}X DE ${brl(pg.parcela)} SEM JUROS`);
+    return partes.join("  ·  ");
+  }
+  const T_CENTRO_AJUSTADO = (txt, y, size, cor, maxW = 340, cs = 1.4) => { let sz = size; while (sz > 5.5 && largura(txt, sz, cs) > maxW) sz -= 0.25; return T(txt, PW / 2, y, { size: sz, color: cor, cs, align: "center" }); };
 
   /* ---------- dados ---------- */
   const ativas = () => ordenar(V.cfg, V.pecas.filter(p => !p.arquivada));
@@ -147,6 +202,7 @@
     h += `<div style="${box(PW / 2 - 33, 28, 66, 66)};border:max(${U(0.5)},.5px) solid ${C.gold};border-radius:50%;pointer-events:none"></div>`;
     h += T("Vitrine", PW / 2, 126, { size: 30, color: C.ink, align: "center" });
     h += T("ESCOLHA UMA LINHA", PW / 2, 143, { size: 7.5, color: C.deep, cs: 3, align: "center" });
+    h += botaoSacola(PW - 30 - 34, 30);
     h += divisor(PW / 2, 157, 150);
     const cx = M, cw = PW - 2 * M, top0 = 180, alt = 224, gap = 18, fotoH = 162;
     LH.LINHAS.forEach((l, i) => {
@@ -163,7 +219,7 @@
       h += rect(cx, y + fotoH, cw, alt - fotoH, { fill: C.paper });
       h += rect(cx, y, cw, alt, { stroke: C.gold, lw: 0.6 });
       h += hline(cx, cx + cw, y + fotoH, C.gold, 0.4);
-      if (itens.some(ehNova)) h += selo(cx + 9, y + 9);
+      if (itens.some(ehNova)) h += selo(cx + 9, y + 9, "novidade");
       h += T(l.nome, PW / 2, y + fotoH + 31, { size: 24, color: C.ink, align: "center" });
       h += T(itens.length ? `${itens.length} ${itens.length === 1 ? "PEÇA" : "PEÇAS"}  ›` : "EM BREVE", PW / 2, y + fotoH + 50, { size: 8, color: itens.length ? C.deep : C.soft, cs: 3, align: "center", bold: !!itens.length });
       if (itens.length) h += link(cx, y, cw, alt, `#${l.id}-1`, { label: `Ver ${l.nome}` });
@@ -190,9 +246,12 @@
       h += T(modo === "novidades" ? "DESDE A SUA ÚLTIMA VISITA" : (cfg.colecao || "Le Helê Semi Joias").toUpperCase(), PW / 2, 143, { size: 7.5, color: C.deep, cs: 3, align: "center" });
       h += divisor(PW / 2, 157, 150);
       h += T("TOQUE EM UMA PEÇA PARA VER OS DETALHES", PW / 2, 172, { size: 5.8, color: C.soft, cs: 2, align: "center" });
+      h += botaoSacola(PW - 30 - 34, 30);
     } else {
       h += T(titulo.toUpperCase(), M, 46, { size: 8, color: C.deep, cs: 3.5 });
-      h += T("LE HELÊ", PW - M, 46, { size: 8, color: C.deep, cs: 3.5, align: "right" });
+      const ns = qtdSacola();
+      if (usaSacola() && ns) h += T(`SACOLA (${ns})  ›`, PW - M, 46, { size: 8.5, color: C.deep, cs: 2.5, align: "right", bold: true, href: "#sacola" });
+      else h += T("LE HELÊ", PW - M, 46, { size: 8, color: C.deep, cs: 3.5, align: "right" });
       h += hline(M, PW - M, 54, C.gold, 0.3);
     }
     if (!lista.length) {
@@ -208,7 +267,7 @@
       const p = it.p, src = thumbDe(p);
       h += src ? img(src, it.x, it.y, colW, colW, "im", `background:${C.taupe}`) : rect(it.x, it.y, colW, colW, { fill: C.taupe });
       h += rect(it.x, it.y, colW, colW, { stroke: C.gold, lw: 0.5 }) + rect(it.x + 5, it.y + 5, colW - 10, colW - 10, { stroke: "#FFFFFF", lw: 0.4 });
-      if (ehNova(p) && modo !== "novidades") h += selo(it.x + 9, it.y + 9);
+      h += selosDe(p, it.x + 9, it.y + 9, { novidade: modo !== "novidades" });
       const nl = linhas(p.nome, 11.5, colW - 6, 2);
       nl.forEach((l, i) => { h += `<div class="t" style="left:${U(it.x)};width:${U(colW)};text-align:center;top:${U(it.y + colW + 16 + i * 13 - 0.91 * 11.5)};font-size:${U(11.5)};color:${C.ink}">${esc(l)}</div>`; });
       if (p.codigo) h += `<div class="t" style="left:${U(it.x)};width:${U(colW)};text-align:center;top:${U(it.y + colW + 16 + nl.length * 13 + 1 - 0.91 * 6.5)};font-size:${U(6.5)};color:${C.deep};letter-spacing:${U(1.8)}">${esc(p.codigo.toUpperCase())}</div>`;
@@ -263,9 +322,15 @@
     const fx = (PW - fw) / 2;
     if (f0) {
       h += img(fotoURL(f0.full), fx, top, fw, fh, "ct", `background:transparent`);
+      h += `<button type="button" class="hit" style="${box(fx, top, fw, fh)}" data-zoom="${esc(fotoURL(f0.full))}" aria-label="Ampliar foto"></button>`;
+      // compartilhar a peça (com a foto) — canto de cima, à direita da foto
+      const sd = 30, sx = fx + fw - sd - 7, sy = top + 7;
+      h += rect(sx, sy, sd, sd, { fill: "rgba(244,236,223,.92)", r: sd / 2 });
+      h += `<svg viewBox="0 0 24 24" style="${box(sx + 7, sy + 7, sd - 14, sd - 14)};pointer-events:none" fill="none" stroke="${C.ink}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>`;
+      h += `<button type="button" class="hit" style="${box(sx - 5, sy - 5, sd + 10, sd + 10)};z-index:4" data-share="${esc(p.id)}" aria-label="Compartilhar esta peça"></button>`;
       h += `<div class="fr-foto" data-auto="${conhecido ? 0 : 1}" style="${box(fx - 5, top - 5, fw + 10, fh + 10)};border:max(${U(0.5)},.5px) solid ${C.gold};pointer-events:none"></div>`;
     } else h += rect(fx, top, fw, fh, { fill: C.taupe });
-    if (ehNova(p)) h += selo(fx + 4, top + 4);
+    h += selosDe(p, fx + 6, top + 6, { max: 3 });
     let yy = top + fh + 5;
     if (temThumbs) {
       const n = Math.min(fotos.length, 7), s = 36, g = 8, tw = n * s + (n - 1) * g; let tx = (PW - tw) / 2; const ty = yy + 12;
@@ -276,7 +341,7 @@
         tx += s + g;
       }
       yy = ty + s + 4;
-      h += T("TOQUE NAS MINIATURAS PARA AMPLIAR", PW / 2, yy + 8, { size: 5.5, color: C.soft, cs: 1.6, align: "center" });
+      h += T("TOQUE NA FOTO OU NAS MINIATURAS PARA AMPLIAR", PW / 2, yy + 8, { size: 5.5, color: C.soft, cs: 1.6, align: "center" });
       yy += 10;
     }
     let ty = yy + 26;
@@ -285,26 +350,45 @@
     ty += (nomeLs.length - 1) * 25 + 16;
     if (p.codigo) { h += T("REF. " + p.codigo.toUpperCase(), PW / 2, ty, { size: 7, color: C.soft, cs: 2, align: "center" }); ty += 14; }
     h += divisor(PW / 2, ty, 110); ty += 26;
-    h += T(brl(p.valor) || "Sob consulta", PW / 2, ty, { size: p.valor != null ? 21 : 15, color: C.deep, align: "center" });
+    if (emOferta(p)) {
+      // "de R$ antigo" riscado ao lado do preço atual
+      const de = brl(p.valorAntigo), por = brl(p.valor), wd = largura(de, 12), wp = largura(por, 21), x0 = (PW - (wd + 12 + wp)) / 2;
+      h += T(de, x0, ty - 1, { size: 12, color: C.soft });
+      h += hline(x0 - 1, x0 + wd + 1, ty - 5, C.soft, 0.8);
+      h += T(por, x0 + wd + 12, ty, { size: 21, color: C.deep });
+    } else h += T(brl(p.valor) || "Sob consulta", PW / 2, ty, { size: p.valor != null ? 21 : 15, color: C.deep, align: "center" });
     ty += 17;
+    const lp = linhaPagamento(p.valor);
+    if (lp) { h += T_CENTRO_AJUSTADO(lp, ty + 1, 7.5, C.ink); ty += 15; }
     if (p.banho) {
       const bt = "BANHO · " + p.banho.toUpperCase().replace(/^BANHO\s+/, ""); let bs = 9.5;
       while (bs > 6.5 && largura(bt, bs, 2) > 330) bs -= 0.5;
       h += T(bt, PW / 2, ty + 2, { size: bs, color: C.ink, cs: 2, align: "center" }); ty += 17;
     }
     ty += 12;
-    const limite = zap ? PH - 110 : PH - 44;
+    const limite = zap ? PH - 118 : PH - 44;
     const cabem = Math.max(0, Math.floor((limite - ty) / DESC_LH) + 1);
     if (descLs.length) {
       const ls = descLs.length > cabem ? linhas(p.descricao, DESC_S, DESC_W, cabem) : descLs;
       ls.forEach((l, i) => { h += T(l, PW / 2, ty + i * DESC_LH, { size: DESC_S, color: C.ink, align: "center" }); });
     }
     if (zap) {
-      const w = 222, hh = 38, x = (PW - w) / 2, yb = PH - 92;
-      h += rect(x, yb, w, hh, { fill: C.deep, r: 19 });
-      h += T("QUERO ESTA PEÇA", PW / 2, yb + 23, { size: 10, color: C.paper, cs: 2.8, align: "center", bold: true });
-      h += link(x, yb, w, hh, zap, { ext: true, label: "Quero esta peça (WhatsApp)", zap: p.id });
-      h += T("ATENDIMENTO PELO WHATSAPP", PW / 2, yb + hh + 12, { size: 5.5, color: C.soft, cs: 1.8, align: "center" });
+      const w = 250, hh = 42, x = (PW - w) / 2, yb = PH - 104, dentro = naSacola(p.id);
+      h += `<div class="${dentro ? "" : "cta"}" style="${box(x, yb, w, hh)};background:${dentro ? C.paper : C.deep};${dentro ? `border:max(${U(0.9)},.5px) solid ${C.deep};` : ""}border-radius:${U(hh / 2)};pointer-events:none"></div>`;
+      if (dentro) {
+        h += T("✓  NA SACOLA · VER SACOLA  ›", PW / 2, yb + hh / 2 + 3.8, { size: 10, color: C.ink, cs: 2, align: "center", bold: true });
+        h += link(x, yb, w, hh, "#sacola", { label: "Ver sacola" });
+      } else {
+        h += iconeSacola(x + 22, yb + 11, 20, C.paper);
+        h += T("ADICIONAR À SACOLA", PW / 2 + 12, yb + hh / 2 + 3.8, { size: 10.5, color: C.paper, cs: 2.4, align: "center", bold: true });
+        h += `<button type="button" class="hit" style="${box(x, yb, w, hh)}" data-add="${esc(p.id)}" aria-label="Adicionar à sacola"></button>`;
+      }
+      // linha de baixo: pedir só esta peça (e ver a sacola, se já tiver peças)
+      const n = qtdSacola(), yl = yb + hh + 22;
+      const a = "PEDIR SÓ ESTA PELO WHATSAPP  ›", b = `VER SACOLA (${n})  ›`;
+      const wa = largura(a, 7.5, 1.6), wb = n && !dentro ? largura(b, 7.5, 1.6) : 0, gapL = wb ? 26 : 0, x0 = (PW - wa - wb - gapL) / 2;
+      if (wb) { h += T(b, x0, yl, { size: 7.5, color: C.deep, cs: 1.6, bold: true, href: "#sacola" }); h += T("·", x0 + wb + gapL / 2 - 2, yl, { size: 7.5, color: C.soft }); }
+      h += `<a class="t b nav" style="left:${U(x0 + wb + gapL)};top:${U(yl - 0.91 * 7.5)};font-size:${U(7.5)};color:${C.ink};letter-spacing:${U(1.6)};--sw:${U(0.3)}" href="${esc(zap)}" target="_blank" rel="noopener" data-zap="${esc(p.id)}">${esc(a)}</a>`;
     }
     // pré-carrega a próxima peça
     if (seg && seg.fotos[0]) { const i = new Image(); i.src = fotoURL(seg.fotos[0].full); }
@@ -318,6 +402,7 @@
     let h = moldura(C.deep);
     h += T("‹  VOLTAR À PEÇA", 30, 43, { size: 9, color: C.ink, cs: 2.2, bold: true, href: `#peca-${p.id}` });
     h += T(`FOTO ${k} DE ${p.fotos.length}`, PW - 30, 42, { size: 7, color: C.ink, cs: 1.8, align: "right" });
+    h += T("TOQUE NA FOTO E USE DOIS DEDOS PARA APROXIMAR", PW / 2, PH - 74, { size: 5.5, color: C.ink, cs: 1.6, align: "center" });
     h += T(linhas(p.nome, 17, 320, 1)[0], PW / 2, 80, { size: 17, color: C.ink, align: "center" });
     h += divisor(PW / 2, 94, 90);
     const maxW = PW - 64, maxH = PH - 118 - 92;
@@ -325,6 +410,7 @@
     if (f.w && f.h) { const kk = Math.min(maxW / f.w, maxH / f.h); gw = f.w * kk; gh = f.h * kk; conhecido = true; }
     const gx = (PW - gw) / 2, gy = 118 + (maxH - gh) / 2;
     h += img(fotoURL(f.full), gx, gy, gw, gh, "ct");
+    h += `<button type="button" class="hit" style="${box(gx, gy, gw, gh)}" data-zoom="${esc(fotoURL(f.full))}" aria-label="Ampliar foto"></button>`;
     h += `<div class="fr-foto" data-auto="${conhecido ? 0 : 1}" style="${box(gx - 5, gy - 5, gw + 10, gh + 10)};border:max(${U(0.6)},.5px) solid ${C.cream};pointer-events:none"></div>`;
     const prev = k === 2 ? `#peca-${p.id}` : `#peca-${p.id}-foto-${k - 1}`;
     h += botao("‹  ANTERIOR", 30, PH - 46, { href: prev, nav: "prev" }).h;
@@ -355,6 +441,143 @@
     return { bg: C.taupe, html: h };
   }
 
+  function paginaSacola(m) {
+    const cfg = V.cfg, l = sacola(), por = 5;
+    const pags = Math.max(1, Math.ceil(l.length / por)); m = Math.max(0, Math.min(m, pags - 1));
+    let h = moldura();
+    h += iconeSacola(PW / 2 - 13, 34, 26, C.deep);
+    h += T("Sua sacola", PW / 2, 92, { size: 28, color: C.ink, align: "center" });
+    h += divisor(PW / 2, 108, 130);
+    const voltar = V.ultimaLista || "#linhas";
+    if (!l.length) {
+      h += T("Sua sacola está vazia.", PW / 2, 300, { size: 16, color: C.soft, align: "center" });
+      h += T("TOQUE EM “ADICIONAR À SACOLA” NAS PEÇAS QUE GOSTAR", PW / 2, 324, { size: 6.5, color: C.soft, cs: 1.6, align: "center" });
+      h += botao("VER A VITRINE  ›", 0, PH - 62, { lado: "centro", href: voltar, cheio: true }).h;
+      return { bg: C.cream, html: h };
+    }
+    const itens = l.map(i => ({ ...i, p: ativas().find(p => p.id === i.id) }));
+    let y = 126; const RH = 70;
+    for (const it of itens.slice(m * por, m * por + por)) {
+      const p = it.p, src = thumbDe(p), sx = M;
+      h += src ? img(src, sx, y, 56, 56, "im", `background:${C.taupe}`) : rect(sx, y, 56, 56, { fill: C.taupe });
+      h += rect(sx, y, 56, 56, { stroke: C.gold, lw: 0.5 });
+      h += link(sx, y, 56, 56, `#peca-${p.id}`, { label: p.nome });
+      const nl = linhas(p.nome, 10.5, 170, 2);
+      nl.forEach((t, i) => { h += T(t, sx + 66, y + 13 + i * 12.5, { size: 10.5, color: C.ink }); });
+      const sub = [p.codigo ? "REF. " + p.codigo.toUpperCase() : "", p.valor != null ? brl(p.valor) + " CADA" : "SOB CONSULTA"].filter(Boolean).join("  ·  ");
+      const ySub = y + 13 + nl.length * 12.5 + 3;
+      h += T(sub, sx + 66, ySub, { size: 6.5, color: C.soft, cs: 1.2 });
+      if (p.valor != null) h += T(brl(p.valor * it.q), PW - M, y + 14, { size: 13, color: C.deep, align: "right" });
+      // quantidade: −  2  +
+      const qy = y + 32, qd = 22, qx = PW - M - 3 * qd - 4;
+      h += rect(qx, qy, qd, qd, { stroke: C.deep, lw: 0.8, r: qd / 2 }) + T("−", qx + qd / 2 - 3.3, qy + 15.5, { size: 13, color: C.ink });
+      h += T(String(it.q), qx + qd + 2 + (qd - largura(String(it.q), 11)) / 2, qy + 15, { size: 11, color: C.ink });
+      h += rect(qx + 2 * qd + 4, qy, qd, qd, { fill: C.deep, r: qd / 2 }) + T("+", qx + 2 * qd + 4 + qd / 2 - 3.6, qy + 15.5, { size: 13, color: C.paper });
+      h += `<button type="button" class="hit" style="${box(qx - 4, qy - 4, qd + 6, qd + 8)}" data-menos="${esc(p.id)}" aria-label="Tirar uma"></button>`;
+      h += `<button type="button" class="hit" style="${box(qx + 2 * qd + 2, qy - 4, qd + 6, qd + 8)}" data-mais="${esc(p.id)}" aria-label="Mais uma"></button>`;
+      h += `<button type="button" class="hit t" style="${box(sx + 66, ySub + 4, 60, 14)};font-size:${U(6.5)};letter-spacing:${U(1.4)};color:${C.soft};text-align:left;text-decoration:underline" data-tirar="${esc(p.id)}">REMOVER</button>`;
+      y += RH;
+      h += hline(M, PW - M, y - 7, C.gold, 0.3);
+    }
+    if (pags > 1) {
+      if (m > 0) h += T("‹  ANTERIORES", M, y + 8, { size: 7.5, color: C.deep, cs: 1.6, bold: true, href: `#sacola-${m}` });
+      if (m < pags - 1) h += T("MAIS PEÇAS  ›", PW - M, y + 8, { size: 7.5, color: C.deep, cs: 1.6, bold: true, align: "right", href: `#sacola-${m + 2}` });
+    }
+    // total, Pix e parcelas
+    const n = l.reduce((s, i) => s + i.q, 0), semPreco = itens.some(i => i.p.valor == null);
+    const total = itens.reduce((s, i) => s + (i.p.valor || 0) * i.q, 0);
+    const yt = PH - 168;
+    h += hline(M, PW - M, yt - 18, C.deep, 0.5);
+    h += T(`TOTAL · ${n} ${n === 1 ? "PEÇA" : "PEÇAS"}`, M, yt, { size: 8, color: C.ink, cs: 2.2, bold: true });
+    h += T(brl(total) + (semPreco ? " +" : ""), PW - M, yt + 2, { size: 19, color: C.deep, align: "right" });
+    const lp = linhaPagamento(total);
+    if (lp) h += T_CENTRO_AJUSTADO(lp, yt + 22, 7.5, C.ink);
+    if (semPreco) h += T("ALGUMAS PEÇAS SÃO SOB CONSULTA", PW / 2, yt + 36, { size: 6, color: C.soft, cs: 1.4, align: "center" });
+    // mensagem do pedido
+    const pg = pagamento(cfg, total);
+    const msg = ["Olá! Vi a vitrine Le Helê e quero fazer este pedido:", "",
+      ...itens.map(i => `• ${i.q}× ${i.p.nome}${i.p.codigo ? " (" + i.p.codigo + ")" : ""} — ${i.p.valor != null ? brl(i.p.valor * i.q) : "sob consulta"}`), "",
+      `Total: ${brl(total)}${semPreco ? " + peças sob consulta" : ""}`,
+      ...(pg && pg.pix != null ? [`No Pix: ${brl(pg.pix)} (${LH.pctTxt(pg.pixPct)} de desconto)`] : []),
+      ...(pg && pg.parcelas ? [`Ou ${pg.parcelas}x de ${brl(pg.parcela)} sem juros`] : [])].join("\n");
+    const zap = whatsLink(cfg.whatsapp, msg);
+    const w = 286, hh = 44, x = (PW - w) / 2, yb = PH - 110;
+    h += `<div class="cta" style="${box(x, yb, w, hh)};background:${C.deep};border-radius:${U(hh / 2)};pointer-events:none"></div>`;
+    h += T("ENVIAR PEDIDO NO WHATSAPP  ›", PW / 2, yb + hh / 2 + 4, { size: 10.5, color: C.paper, cs: 2.2, align: "center", bold: true });
+    h += `<a class="hit" style="${box(x, yb, w, hh)}" href="${esc(zap)}" target="_blank" rel="noopener" data-pedido="1" aria-label="Enviar pedido no WhatsApp"></a>`;
+    h += botao("‹  CONTINUAR VENDO", M, PH - 40, { href: voltar, nav: "prev" }).h;
+    h += `<button type="button" class="hit t" style="${box(PW - M - 90, PH - 50, 90, 20)};font-size:${U(7)};letter-spacing:${U(1.6)};color:${C.soft};text-align:right;text-decoration:underline" data-esvaziar="1">ESVAZIAR SACOLA</button>`;
+    return { bg: C.cream, html: h };
+  }
+
+  /* ---------- ampliar foto com dois dedos ---------- */
+  function abrirZoom(src) {
+    const ov = document.createElement("div");
+    ov.className = "zoom";
+    ov.innerHTML = `<img alt="" src="${esc(src)}" draggable="false"><button type="button" class="zoom-x" aria-label="Fechar">×</button><p class="zoom-dica">Use dois dedos para aproximar · toque duas vezes para ampliar</p>`;
+    document.body.appendChild(ov);
+    const im = ov.querySelector("img"), pts = new Map();
+    let s = 1, tx = 0, ty = 0, base = null, ultimoToque = 0;
+    const limitar = () => {
+      s = Math.min(5, Math.max(1, s));
+      const r = ov.getBoundingClientRect(), mw = (im.offsetWidth * s - r.width) / 2, mh = (im.offsetHeight * s - r.height) / 2;
+      tx = Math.max(-Math.max(0, mw), Math.min(Math.max(0, mw), tx)); ty = Math.max(-Math.max(0, mh), Math.min(Math.max(0, mh), ty));
+      if (s === 1) { tx = 0; ty = 0; }
+    };
+    const aplicar = () => { limitar(); im.style.transform = `translate(${tx}px,${ty}px) scale(${s})`; };
+    const fechar = () => { ov.remove(); document.removeEventListener("keydown", tecla, true); };
+    const tecla = e => { if (e.key === "Escape") { e.stopPropagation(); fechar(); } else if (e.key.startsWith("Arrow")) e.stopPropagation(); };
+    document.addEventListener("keydown", tecla, true);
+    ov.querySelector(".zoom-x").onclick = fechar;
+    const dist = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+    const meio = () => { const [a, b] = [...pts.values()]; return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; };
+    im.addEventListener("pointerdown", e => {
+      im.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 2) base = { d: dist(), s, tx, ty, m: meio() };
+      else if (pts.size === 1) {
+        const agora = Date.now();
+        if (agora - ultimoToque < 300) { // toque duplo
+          if (s > 1) { s = 1; } else { const r = ov.getBoundingClientRect(); s = 2.5; tx = (r.width / 2 - e.clientX) * 1.5; ty = (r.height / 2 - e.clientY) * 1.5; }
+          aplicar(); ultimoToque = 0; return;
+        }
+        ultimoToque = agora; base = { x: e.clientX, y: e.clientY, tx, ty };
+      }
+    });
+    im.addEventListener("pointermove", e => {
+      if (!pts.has(e.pointerId)) return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 2 && base && base.d) { const m2 = meio(); s = base.s * dist() / base.d; tx = base.tx + (m2.x - base.m.x); ty = base.ty + (m2.y - base.m.y); aplicar(); }
+      else if (pts.size === 1 && base && s > 1) { tx = base.tx + (e.clientX - base.x); ty = base.ty + (e.clientY - base.y); aplicar(); }
+    });
+    const solta = e => { pts.delete(e.pointerId); if (pts.size === 1) { const [p] = [...pts.values()]; base = { x: p.x, y: p.y, tx, ty }; } else if (!pts.size) base = null; };
+    im.addEventListener("pointerup", solta); im.addEventListener("pointercancel", solta);
+    ov.addEventListener("wheel", e => { e.preventDefault(); s *= e.deltaY < 0 ? 1.15 : 1 / 1.15; aplicar(); }, { passive: false });
+  }
+
+  /* ---------- compartilhar a peça com a foto ---------- */
+  const fotoPronta = new Map();   // id -> File (já baixado, para o compartilhamento abrir na hora)
+  function prepararFoto(p) {
+    if (!p || !p.fotos[0] || fotoPronta.has(p.id) || !navigator.canShare) return;
+    fotoPronta.set(p.id, null);
+    fetch(fotoURL(p.fotos[0].full)).then(r => r.ok ? r.blob() : null).then(b => {
+      if (!b) return;
+      const nome = (p.nome || "peca").normalize("NFD").replace(/[^\w]+/g, "-").replace(/^-|-$/g, "").toLowerCase().slice(0, 40) || "peca";
+      fotoPronta.set(p.id, new File([b], `le-hele-${nome}.jpg`, { type: b.type || "image/jpeg" }));
+    }).catch(() => { });
+  }
+  async function compartilhar(id) {
+    const p = ativas().find(x => x.id === id); if (!p) return;
+    const url = location.href.split("#")[0] + "#peca-" + id;
+    const texto = `${p.nome}${p.valor != null ? " — " + brl(p.valor) : ""}\nLe Helê Semijoias: ${url}`;
+    const f = fotoPronta.get(id);
+    try {
+      if (f && navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], text: texto }); return; }
+      if (navigator.share) { await navigator.share({ title: p.nome, text: texto, url }); return; }
+    } catch (e) { if (e && e.name === "AbortError") return; }
+    try { await navigator.clipboard.writeText(texto); avisar("Link da peça copiado. É só colar na conversa."); }
+    catch (e) { avisar(url); }
+  }
+
   /* ---------- rotas ---------- */
   function rota() {
     const hsh = decodeURIComponent(location.hash.replace(/^#/, ""));
@@ -366,6 +589,7 @@
     if ((m = hsh.match(/^peca-(.+)-foto-(\d+)$/))) return { tipo: "foto", id: m[1], k: +m[2] };
     if ((m = hsh.match(/^peca-(.+)$/))) return { tipo: "peca", id: m[1] };
     if (hsh === "atendimento") return { tipo: "atendimento" };
+    if ((m = hsh.match(/^sacola(?:-(\d+))?$/))) return { tipo: "sacola", n: m[1] ? +m[1] - 1 : 0 };
     return { tipo: "capa" };
   }
   function desenhar() {
@@ -379,6 +603,9 @@
     else if (r.tipo === "peca") { pg = paginaPeca(r.id); if (pg) registrar("peca", r.id); }
     else if (r.tipo === "foto") pg = paginaFoto(r.id, r.k);
     else if (r.tipo === "atendimento") pg = (V.cfg.whatsapp || V.cfg.instagram) ? paginaAtendimento() : null;
+    else if (r.tipo === "sacola") pg = usaSacola() ? paginaSacola(r.n) : null;
+    if (r.tipo === "indice" || r.tipo === "novidades") V.ultimaLista = location.hash;
+    if (r.tipo === "peca") prepararFoto(ativas().find(p => p.id === r.id));
     if (!pg) { location.replace("#linhas"); return; }
     app.style.background = pg.bg;
     document.querySelector('meta[name="theme-color"]').setAttribute("content", pg.bg);
@@ -438,7 +665,21 @@
     try { const t = +sessionStorage.getItem(chave) || 0; if (Date.now() - t < 30 * 60e3) return; sessionStorage.setItem(chave, String(Date.now())); } catch (e) { }
     try { sb.from("acessos").insert({ tipo, visitante: visitante(), peca_id: pecaId || null }).then(() => { }, () => { }); } catch (e) { }
   }
-  app.addEventListener("click", e => { const a = e.target.closest("[data-zap]"); if (a) registrar("zap", a.getAttribute("data-zap")); });
+  app.addEventListener("click", e => {
+    const a = e.target.closest("[data-zap]"); if (a) registrar("zap", a.getAttribute("data-zap"));
+    const b = e.target.closest("button[data-add],button[data-mais],button[data-menos],button[data-tirar],button[data-esvaziar],button[data-zoom],button[data-share],a[data-pedido]");
+    if (!b) return;
+    const d = b.dataset;
+    if (d.zoom) { abrirZoom(d.zoom); return; }
+    if (d.share) { compartilhar(d.share); return; }
+    if (d.pedido) { sacola().forEach(i => registrar("zap", i.id)); return; }
+    if (d.add) { mudarSacola(d.add, 1); const n = qtdSacola(); avisar(`Adicionada à sacola · ${n} ${n === 1 ? "peça" : "peças"}`); }
+    else if (d.mais) mudarSacola(d.mais, 1);
+    else if (d.menos) mudarSacola(d.menos, -1);
+    else if (d.tirar) mudarSacola(d.tirar, 0, true);
+    else if (d.esvaziar) salvarSacola([]);
+    desenhar();
+  });
   async function carregar() {
     const [r1, r2] = await Promise.all([
       sb.from("pecas").select("*").eq("arquivada", false).order("criado_em", { ascending: true }),
@@ -446,7 +687,9 @@
     ]);
     if (r1.error) throw r1.error;
     if (r2.error) throw r2.error;
-    return { pecas: (r1.data || []).map(rowToPeca), cfg: rowToConfig(r2.data) };
+    let desejadas = [];
+    try { const r3 = await sb.rpc("mais_desejadas", { qtd: 3 }); if (!r3.error && Array.isArray(r3.data)) desejadas = r3.data.map(x => typeof x === "object" && x ? Object.values(x)[0] : x); } catch (e) { }
+    return { pecas: (r1.data || []).map(rowToPeca), cfg: rowToConfig(r2.data), desejadas };
   }
   let recT, primeira = true;
   function recarregar() {
@@ -455,8 +698,9 @@
       try {
         const antes = new Set(V.pecas.map(p => p.id));
         const d = await carregar();
-        const mudou = JSON.stringify([d.pecas, d.cfg.colecao, d.cfg.whatsapp, d.cfg.instagram, d.cfg.ordemCats, d.cfg.destaques]) !== JSON.stringify([V.pecas, V.cfg.colecao, V.cfg.whatsapp, V.cfg.instagram, V.cfg.ordemCats, V.cfg.destaques]);
-        V.pecas = d.pecas; V.cfg = d.cfg;
+        const chave = x => JSON.stringify([x.pecas, x.cfg.colecao, x.cfg.whatsapp, x.cfg.instagram, x.cfg.ordemCats, x.cfg.destaques, x.cfg.pixDesconto, x.cfg.parcelasMax, x.cfg.parcelaMin, [...x.desejadas].sort()]);
+        const mudou = chave({ ...d, desejadas: new Set(d.desejadas) }) !== chave(V);
+        V.pecas = d.pecas; V.cfg = d.cfg; V.desejadas = new Set(d.desejadas);
         if (mudou) {
           const novas = d.pecas.filter(p => !antes.has(p.id)).length;
           desenhar();
@@ -485,7 +729,7 @@
     try {
       sb = criarCliente();
       const d = await carregar();
-      V.pecas = d.pecas; V.cfg = d.cfg; V.pronto = true;
+      V.pecas = d.pecas; V.cfg = d.cfg; V.desejadas = new Set(d.desejadas); V.pronto = true;
       registrar("visita");
       desenhar();
     } catch (e) {

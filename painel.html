@@ -100,6 +100,7 @@ main{max-width:980px;margin:0 auto;padding:18px 16px 0}
 .card .nm{font-family:var(--display);font-size:17px;line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .card .row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:4px}
 .card .ref{font-size:11px;color:var(--ink-soft);letter-spacing:.06em}
+.card .pr s{font-size:12px;color:var(--ink-soft);text-decoration-thickness:1px}
 .card .pr{font-family:var(--display);font-size:16px;color:var(--gold-deep);white-space:nowrap;font-variant-numeric:tabular-nums}
 
 .empty{border:1px dashed var(--line);border-radius:var(--r);padding:28px 20px;text-align:center;background:var(--surface)}
@@ -137,6 +138,10 @@ main{max-width:980px;margin:0 auto;padding:18px 16px 0}
 .field input:focus,.field textarea:focus{border-color:var(--gold)}
 .field textarea{min-height:110px;resize:vertical;line-height:1.5}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tres{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:end}
+.tres .field label{letter-spacing:.1em;font-size:10px}
+.money.sufixo input{padding-left:14px;padding-right:34px}
+.money.sufixo span{left:auto;right:14px}
 .hint{font-size:12px;color:var(--ink-soft);margin:0}
 .req{color:var(--gold-deep)}
 .money{position:relative}
@@ -333,6 +338,7 @@ img{max-width:100%}
         <div class="field"><label for="fCodigo">Código</label><input id="fCodigo" autocomplete="off" placeholder="LH-001" maxlength="20"></div>
         <div class="field"><label for="fValor">Valor</label><div class="money"><span>R$</span><input id="fValor" inputmode="decimal" autocomplete="off" placeholder="0,00"></div></div>
       </div>
+      <div class="field" id="antigoBox"><label for="fAntigo">Preço antigo — promoção (opcional)</label><div class="money"><span>R$</span><input id="fAntigo" inputmode="decimal" autocomplete="off" placeholder="Deixe vazio se não estiver em promoção"></div><p class="hint" id="antigoHint">Preencha com um valor maior que o atual: na vitrine aparece “de R$ antigo por R$ atual” e o selo OFERTA.</p></div>
       <div class="two">
         <div class="field"><label for="fCategoria">Categoria</label><input id="fCategoria" list="dlCategorias" autocomplete="off" placeholder="Brincos" maxlength="30"></div>
         <div class="field"><label for="fBanho">Banho / material</label><input id="fBanho" list="dlBanhos" autocomplete="off" placeholder="Ouro 18k" maxlength="40"></div>
@@ -365,6 +371,15 @@ img{max-width:100%}
         <span class="lbl">Ordem das categorias</span>
         <ol class="ordem" id="ordemLista"></ol>
         <p class="hint">Escolha o número de cada categoria ou use as setas. É nessa ordem que elas aparecem na vitrine online e no painel.</p>
+      </div>
+      <div class="field" id="pagBox">
+        <span class="lbl">Pagamento na vitrine</span>
+        <div class="tres">
+          <div class="field"><label for="aPix">Desconto no Pix</label><div class="money sufixo"><input id="aPix" inputmode="decimal" placeholder="0"><span>%</span></div></div>
+          <div class="field"><label for="aParc">Parcelas sem juros</label><div class="money sufixo"><input id="aParc" inputmode="numeric" placeholder="0"><span>x</span></div></div>
+          <div class="field"><label for="aParcMin">Parcela mínima</label><div class="money"><span>R$</span><input id="aParcMin" inputmode="decimal" placeholder="0,00"></div></div>
+        </div>
+        <p class="hint" id="pagHint">Aparece embaixo do preço de cada peça e na sacolinha. Ex.: 5% e 3x com mínimo de R$ 30 → “R$ 93,10 no Pix · ou 3x de R$ 32,67 sem juros”. Use 0 para não mostrar.</p>
       </div>
       <div class="field"><label for="aColecao">Nome da coleção (capa)</label><input id="aColecao" maxlength="50" placeholder="Ex.: Coleção Primavera"></div>
       <div class="field"><label for="aWhats">WhatsApp para pedidos</label><input id="aWhats" inputmode="tel" maxlength="20" placeholder="(11) 98765-4321"><p class="hint">Cria o botão “Quero esta peça” em cada página, que abre uma conversa já com o nome da peça.</p></div>
@@ -569,6 +584,7 @@ async function entrarNoPainel(session) {
   if (iniciado) return;
   iniciado = true;
   try {
+    try { const pr = await sb.from("pecas").select("valor_antigo").limit(1); LH.colunas.valorAntigo = !pr.error; } catch (e) { LH.colunas.valorAntigo = false; }
     store = SupaStore(sb);
     await store.init(pecas => { S.pecas = pecas; S.ready = true; render(); }, cfg => { S.config = cfg || {}; if (S.ready) render(); });
     if (location.hash === "#acessos") mostrarAba("acessos");   // vindo da Gestão
@@ -748,7 +764,7 @@ function render() {
       <button class="open" type="button" ${S.canWrite ? "" : "tabindex='-1'"} aria-label="${S.canWrite ? "Editar " : ""}${esc(p.nome)}${arq ? " (arquivada)" : ""}">
       <div class="ph">${f ? `<img loading="lazy" alt="" src="${esc(store.url(f))}">` : ""}${p.linha === "ouro" ? `<span class="ouro">Ouro</span>` : ""}${arq ? `<span class="flag">Arquivada</span>` : ""}${(p.fotos || []).length > 1 ? `<span class="count">${p.fotos.length} fotos</span>` : ""}</div>
       <div class="meta">${catOf(p) ? `<span class="cat">${esc(catOf(p))}</span>` : ""}<span class="nm">${esc(p.nome)}</span>
-      <div class="row"><span class="ref">${esc(p.codigo || "")}</span><span class="pr">${esc(brl(p.valor) || "Sob consulta")}</span></div></div></button>
+      <div class="row"><span class="ref">${esc(p.codigo || "")}</span><span class="pr">${p.valorAntigo > p.valor ? `<s>${esc(brl(p.valorAntigo))}</s> ` : ""}${esc(brl(p.valor) || "Sob consulta")}</span></div></div></button>
       ${S.canWrite ? `<button class="arch" type="button" data-arq="${esc(p.id)}" aria-label="${arq ? "Reativar" : "Arquivar"} ${esc(p.nome)}">${arq
         ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4h4"/></svg>Reativar'
         : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="4.5" rx="1"/><path d="M5 8.5V19a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.5M10 12.5h4"/></svg>Arquivar'}</button>` : ""}
@@ -788,6 +804,9 @@ function abrirEditor(p) {
   $("#edTitulo").textContent = p ? "Editar peça" : "Nova peça";
   $("#fNome").value = p?.nome || ""; $("#fCodigo").value = p?.codigo || ""; $("#fValor").value = fmtValorInput(p?.valor ?? null);
   $("#fCategoria").value = p?.categoria || ""; $("#fBanho").value = p?.banho || ""; $("#fDescricao").value = p?.descricao || "";
+  $("#fAntigo").value = fmtValorInput(p?.valorAntigo ?? null);
+  $("#fAntigo").disabled = !LH.colunas.valorAntigo;
+  $("#antigoHint").textContent = LH.colunas.valorAntigo ? "Preencha com um valor maior que o atual: na vitrine aparece “de R$ antigo por R$ atual” e o selo OFERTA." : "Para usar, rode o arquivo vitrine2.sql no Supabase (SQL Editor).";
   let linhaIni = p ? p.linha : "semijoias";
   if (!p) { try { linhaIni = localStorage.getItem("lehele-ultima-linha") || "semijoias"; } catch (e) { } }
   document.querySelectorAll('input[name="fLinha"]').forEach(r => r.checked = r.value === linhaIni);
@@ -842,6 +861,7 @@ $("#edArquivo").addEventListener("change", async e => {
   }
 });
 $("#fValor").addEventListener("blur", e => { const v = parseValor(e.target.value); e.target.value = v == null ? "" : fmtValorInput(v); });
+$("#fAntigo").addEventListener("blur", e => { const v = parseValor(e.target.value); e.target.value = v == null ? "" : fmtValorInput(v); });
 
 async function salvarPeca() {
   if (!D) return;
@@ -849,8 +869,10 @@ async function salvarPeca() {
   if (D.enviando) return toast("Aguarde as fotos terminarem de enviar.");
   if (!D.fotos.length) return toast("Adicione pelo menos uma foto da peça.");
   if (!nome) { $("#fNome").focus(); return toast("Dê um nome à peça."); }
+  const valor = parseValor($("#fValor").value), antigo = parseValor($("#fAntigo").value);
+  if (antigo != null && (valor == null || antigo <= valor)) { $("#fAntigo").focus(); return toast("O preço antigo precisa ser maior que o valor atual."); }
   const data = {
-    nome, codigo: $("#fCodigo").value.trim(), valor: parseValor($("#fValor").value),
+    nome, codigo: $("#fCodigo").value.trim(), valor, valorAntigo: antigo,
     categoria: $("#fCategoria").value.trim(), banho: $("#fBanho").value.trim(), descricao: $("#fDescricao").value.trim(),
     linha: (document.querySelector('input[name="fLinha"]:checked') || {}).value || "semijoias",
     fotos: D.fotos, criadoEm: D.criadoEm || Date.now(), atualizadoEm: Date.now(), arquivada: !!D.arquivada
@@ -917,7 +939,18 @@ function renderDestaques() {
     : "Para escolher a foto, rode antes o arquivo <b>destaques.sql</b> no Supabase (SQL Editor). Enquanto isso, aparece a peça cadastrada mais recente.";
 }
 $("#destLista").addEventListener("change", e => { const sl = e.target.closest("select[data-linha]"); if (!sl) return; DEST[sl.dataset.linha] = sl.value || null; renderDestaques(); });
+const pctIn = x => x ? String(+(x * 100).toFixed(2)).replace(".", ",") : "0";
+function lerPagamento() {
+  const pix = parseFloat(String($("#aPix").value).replace(",", ".").replace(/[^\d.]/g, "")) || 0;
+  const parc = parseInt(String($("#aParc").value).replace(/\D/g, ""), 10) || 0;
+  return { pixDesconto: Math.min(90, Math.max(0, pix)) / 100, parcelasMax: Math.min(24, parc), parcelaMin: parseValor($("#aParcMin").value) || 0 };
+}
+const pagamentoDe = c => ({ pixDesconto: c.pixDesconto || 0, parcelasMax: c.parcelasMax || 0, parcelaMin: c.parcelaMin || 0, temPagamento: !!c.temPagamento });
 function abrirAjustes(focoOrdem) {
+  const tp = !!S.config.temPagamento;
+  $("#aPix").value = pctIn(S.config.pixDesconto); $("#aParc").value = S.config.parcelasMax || 0; $("#aParcMin").value = fmtValorInput(S.config.parcelaMin || 0);
+  ["aPix", "aParc", "aParcMin"].forEach(i => $("#" + i).disabled = !tp);
+  $("#pagHint").textContent = tp ? "Aparece embaixo do preço de cada peça e na sacolinha. Ex.: 5% e 3x com mínimo de R$ 30 → “R$ 93,10 no Pix · ou 3x de R$ 32,67 sem juros”. Use 0 para não mostrar." : "Para usar, rode o arquivo vitrine2.sql no Supabase (SQL Editor).";
   $("#aColecao").value = S.config.colecao || ""; $("#aWhats").value = S.config.whatsapp || ""; $("#aInsta").value = S.config.instagram || "";
   ORDEM = ordenarCats([...new Set(S.pecas.map(catOf).filter(Boolean))]);
   renderOrdem();
@@ -933,7 +966,7 @@ $("#ajFechar").onclick = fecharAjustes;
 $("#ajSalvar").onclick = async () => {
   const ig = $("#aInsta").value.trim().replace(/^@+/, "");
   const antigas = (S.config.ordemCats || []).filter(x => !ORDEM.some(c => norm(c) === norm(x)));
-  const c = { colecao: $("#aColecao").value.trim(), whatsapp: $("#aWhats").value.trim(), instagram: ig ? "@" + ig : "", ordemCats: [...ORDEM, ...antigas], destaques: DEST, temDestaques: !!S.config.temDestaques };
+  const c = { colecao: $("#aColecao").value.trim(), whatsapp: $("#aWhats").value.trim(), instagram: ig ? "@" + ig : "", ordemCats: [...ORDEM, ...antigas], destaques: DEST, temDestaques: !!S.config.temDestaques, ...pagamentoDe(S.config), ...(S.config.temPagamento ? lerPagamento() : {}) };
   try { await store.saveConfig(c); S.config = c; fecharAjustes(); render(); toast("Ajustes salvos"); } catch (e) { toast("Não foi possível salvar os ajustes."); }
 };
 document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("#editor").hidden) fecharEditor(true); if (!$("#ajustes").hidden) fecharAjustes(); } });
@@ -1001,7 +1034,7 @@ $("#btnBackup").onclick = async () => {
     for (const p of pecas) {
       const fotos = [];
       for (const f of p.fotos) { progresso("Preparando a cópia", `${p.nome} · foto ${fotos.length + 1}`, k++ / total); try { fotos.push(await blobParaDataURL(await store.blob(f))); } catch (e) { } }
-      out.pecas.push({ nome: p.nome, codigo: p.codigo, categoria: p.categoria, banho: p.banho, valor: p.valor, descricao: p.descricao, arquivada: p.arquivada, linha: p.linha, criadoEm: p.criadoEm, atualizadoEm: p.atualizadoEm, fotos });
+      out.pecas.push({ nome: p.nome, codigo: p.codigo, categoria: p.categoria, banho: p.banho, valor: p.valor, valorAntigo: p.valorAntigo ?? null, descricao: p.descricao, arquivada: p.arquivada, linha: p.linha, criadoEm: p.criadoEm, atualizadoEm: p.atualizadoEm, fotos });
     }
     const blob = new Blob([JSON.stringify(out)], { type: "application/json" });
     const nome = `lehele-backup-${new Date().toISOString().slice(0, 10)}.json`;
@@ -1029,12 +1062,12 @@ $("#arqImport").addEventListener("change", async e => {
         try { refs.push(await store.upload(await dataURLParaBlob(d))); } catch (err) { falhas++; }
       }
       if (!refs.length) { falhas++; continue; }
-      await store.savePeca(null, { nome: p.nome, codigo: p.codigo || "", categoria: p.categoria || "", banho: p.banho || "", valor: p.valor ?? null, descricao: p.descricao || "", arquivada: !!p.arquivada, linha: p.linha === "ouro" ? "ouro" : "semijoias", criadoEm: p.criadoEm || Date.now(), fotos: refs });
+      await store.savePeca(null, { nome: p.nome, codigo: p.codigo || "", categoria: p.categoria || "", banho: p.banho || "", valor: p.valor ?? null, valorAntigo: p.valorAntigo ?? null, descricao: p.descricao || "", arquivada: !!p.arquivada, linha: p.linha === "ouro" ? "ouro" : "semijoias", criadoEm: p.criadoEm || Date.now(), fotos: refs });
       ok++;
     }
     const c = dados.config || {};
     const atual = S.config;
-    const mesclado = { destaques: atual.destaques || {}, temDestaques: !!atual.temDestaques, colecao: atual.colecao || c.colecao || "", whatsapp: atual.whatsapp || c.whatsapp || "", instagram: atual.instagram || c.instagram || "", ordemCats: (atual.ordemCats && atual.ordemCats.length) ? atual.ordemCats : (c.ordemCats || []) };
+    const mesclado = { ...pagamentoDe(atual), destaques: atual.destaques || {}, temDestaques: !!atual.temDestaques, colecao: atual.colecao || c.colecao || "", whatsapp: atual.whatsapp || c.whatsapp || "", instagram: atual.instagram || c.instagram || "", ordemCats: (atual.ordemCats && atual.ordemCats.length) ? atual.ordemCats : (c.ordemCats || []) };
     await store.saveConfig(mesclado); S.config = mesclado;
     await store.recarregar();
     const pulei = dados.pecas.length - novas.length;
