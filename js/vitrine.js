@@ -361,7 +361,9 @@
     const lp = linhaPagamento(p.valor);
     if (lp) { h += T_CENTRO_AJUSTADO(lp, ty + 1, 7.5, C.ink); ty += 15; }
     if (p.banho) {
-      const bt = "BANHO · " + p.banho.toUpperCase().replace(/^BANHO\s+/, ""); let bs = 9.5;
+      // peça de ouro não tem banho: mostra só o material (ex.: OURO 18K)
+      const mat = p.banho.toUpperCase().replace(/^BANHO\s+(DE\s+)?/, "");
+      const bt = p.linha === "ouro" ? mat : "BANHO · " + mat; let bs = 9.5;
       while (bs > 6.5 && largura(bt, bs, 2) > 330) bs -= 0.5;
       h += T(bt, PW / 2, ty + 2, { size: bs, color: C.ink, cs: 2, align: "center" }); ty += 17;
     }
