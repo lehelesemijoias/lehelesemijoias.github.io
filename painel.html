@@ -112,7 +112,7 @@ main{max-width:980px;margin:0 auto;padding:18px 16px 0}
 
 /* Barra inferior */
 .dock{position:fixed;left:0;right:0;bottom:0;z-index:25;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px))}
-.dock-in{max-width:980px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dock-in{max-width:480px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:10px}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:50px;padding:0 18px;border-radius:999px;border:1px solid var(--gold);background:transparent;font-size:13px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--ink)}
 .btn svg{width:18px;height:18px}
 .btn.primary{background:var(--gold);color:var(--on-gold)}
@@ -163,7 +163,7 @@ main{max-width:980px;margin:0 auto;padding:18px 16px 0}
 .ordem button svg{width:16px;height:16px}
 .confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--danger)}
 
-/* Progresso PDF */
+/* Progresso */
 .overlay{position:fixed;inset:0;z-index:60;background:var(--scrim);display:grid;place-items:center;padding:0 16px}
 .ovbox{background:var(--bg);border-radius:20px;padding:26px 22px;width:100%;max-width:360px;text-align:center;border:1px solid var(--line)}
 .ovbox h4{margin:0 0 6px;font-family:var(--display);font-weight:400;font-size:24px}
@@ -301,11 +301,8 @@ img{max-width:100%}
 
 <div class="dock">
   <div class="dock-in">
-    <button class="btn" id="btnAdd" disabled>
+    <button class="btn primary" id="btnAdd" disabled>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 5v14M5 12h14"/></svg>Adicionar
-    </button>
-    <button class="btn primary" id="btnPdf" disabled>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 14h6M9 17h4"/></svg>Gerar PDF
     </button>
   </div>
 </div>
@@ -367,7 +364,7 @@ img{max-width:100%}
       <div class="field" id="ordemBox">
         <span class="lbl">Ordem das categorias</span>
         <ol class="ordem" id="ordemLista"></ol>
-        <p class="hint">Escolha o número de cada categoria ou use as setas. É nessa ordem que elas aparecem na vitrine online, no PDF e no painel.</p>
+        <p class="hint">Escolha o número de cada categoria ou use as setas. É nessa ordem que elas aparecem na vitrine online e no painel.</p>
       </div>
       <div class="field"><label for="aColecao">Nome da coleção (capa)</label><input id="aColecao" maxlength="50" placeholder="Ex.: Coleção Primavera"></div>
       <div class="field"><label for="aWhats">WhatsApp para pedidos</label><input id="aWhats" inputmode="tel" maxlength="20" placeholder="(11) 98765-4321"><p class="hint">Cria o botão “Quero esta peça” em cada página, que abre uma conversa já com o nome da peça.</p></div>
@@ -435,10 +432,8 @@ img{max-width:100%}
 
 <script src="config.js"></script>
 <script src="lib/supabase.js"></script>
-<script src="lib/jspdf.umd.min.js"></script>
 <script src="js/comum.js"></script>
 <script>
-let FONT_B64 = "", COVER_B64 = "", EMBLEM_B64 = "";
 
 const $ = s => document.querySelector(s);
 const CATS_BASE = ["Anéis","Brincos","Colares","Pulseiras","Tornozeleiras","Conjuntos","Piercings","Braceletes"];
@@ -717,7 +712,6 @@ function render() {
   $("#filtroBox").classList.toggle("on", !!S.filtro);
   $("#buscaLimpar").hidden = !S.busca;
   $("#btnAdd").disabled = !S.ready;
-  $("#btnPdf").disabled = !pecas.some(p => !p.arquivada);
   $("#dlCategorias").innerHTML = [...new Set([...cats, ...CATS_BASE])].map(c => `<option value="${esc(c)}">`).join("");
   $("#dlBanhos").innerHTML = [...new Set([...pecas.map(p => (p.banho || "").trim()).filter(Boolean), ...BANHOS_BASE])].map(c => `<option value="${esc(c)}">`).join("");
 
@@ -945,23 +939,11 @@ $("#ajSalvar").onclick = async () => {
 document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("#editor").hidden) fecharEditor(true); if (!$("#ajustes").hidden) fecharAjustes(); } });
 
 /* =========================================================
-   PDF INTERATIVO
+   Utilidades de imagem
    ========================================================= */
 const C = { cat: "#6E5122", cream: "#EBDECA", taupe: "#D0BFA8", gold: "#C8A96A", deep: "#A9823E", ink: "#4A3A22", soft: "#8A7150", paper: "#F4ECDF" };
 const PW = 405, PH = 720;
 
-async function carregarRecursosPDF() {
-  if (FONT_B64) return;
-  const b64 = buf => { let s = "", a = new Uint8Array(buf); for (let i = 0; i < a.length; i += 0x8000) s += String.fromCharCode.apply(null, a.subarray(i, i + 0x8000)); return btoa(s); };
-  const dataURL = blob => new Promise(r => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(blob); });
-  const [ttf, capa, emb] = await Promise.all(["assets/GFSDidot.ttf", "assets/capa.jpg", "assets/emblema.jpg"].map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.blob(); })));
-  FONT_B64 = b64(await ttf.arrayBuffer()); COVER_B64 = await dataURL(capa); EMBLEM_B64 = await dataURL(emb);
-}
-async function ensureJsPDF() {
-  if (window.jspdf) return window.jspdf;
-  await new Promise((res, rej) => { const s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
-  return window.jspdf;
-}
 async function bitmapDe(blob) {
   const url = URL.createObjectURL(blob);
   try { return await loadImg(url); } finally { setTimeout(() => URL.revokeObjectURL(url), 2000); }
@@ -987,313 +969,6 @@ function whatsLink(num, msg) {
   return `https://wa.me/${d}?text=${encodeURIComponent(msg)}`;
 }
 
-async function gerarPDF() {
-  // Semijoias primeiro; as de Ouro vêm depois, com as categorias marcadas "Ouro · …"
-  const ativasPDF = ordenar(S.pecas.filter(p => !p.arquivada));
-  const pecas = [...ativasPDF.filter(p => p.linha !== "ouro"), ...ativasPDF.filter(p => p.linha === "ouro").map(p => ({ ...p, categoria: "Ouro · " + (catOf(p) || "Peças") }))];
-  if (!pecas.length) return;
-  const ov = $("#gerando"), bar = $("#gBarra"), txt = $("#gTexto");
-  $("#gTitulo").textContent = "Criando sua vitrine"; $("#gBtns").hidden = true; ov.hidden = false; bar.style.width = "0%";
-  const total = pecas.length + pecas.reduce((n, p) => n + (p.fotos || []).length, 0);
-  let feito = 0;
-  const passo = (t) => { feito++; bar.style.width = Math.min(100, feito / total * 100) + "%"; txt.textContent = t; };
-  try {
-    txt.textContent = "Carregando o estilo do PDF…";
-    await carregarRecursosPDF();
-    const { jsPDF } = await ensureJsPDF();
-    const doc = new jsPDF({ unit: "pt", format: [PW, PH], orientation: "portrait", compress: true });
-    doc.setDisplayMode("fullpage", "single", "UseNone");
-    doc.addFileToVFS("Didot.ttf", FONT_B64); doc.addFont("Didot.ttf", "Didot", "normal"); doc.setFont("Didot", "normal");
-    doc.setProperties({ title: "Le Helê · Vitrine Virtual", subject: S.config.colecao || "Semi joias", author: "Le Helê Semi Joias", creator: "Vitrine Le Helê" });
-
-    const cfg = S.config || {};
-    const zap = cfg.whatsapp ? String(cfg.whatsapp).replace(/\D/g, "") : "";
-    const temContato = !!(zap || cfg.instagram);
-
-    /* --- primitivas de desenho --- */
-    const txtW = (s, size, cs = 0) => { doc.setFontSize(size); return doc.getTextWidth(s) + cs * Math.max(0, s.length - 1); };
-    const T = (s, x, y, { size = 10, color = C.ink, cs = 0, align = "left", bold = false } = {}) => {
-      doc.setFontSize(size); doc.setTextColor(color);
-      const w = txtW(s, size, cs);
-      const xx = align === "center" ? x - w / 2 : align === "right" ? x - w : x;
-      const o = {};
-      if (cs) o.charSpace = cs;
-      if (bold) { doc.setDrawColor(color); doc.setLineWidth(size * 0.045); o.renderingMode = "fillThenStroke"; }
-      doc.text(s, xx, y, Object.keys(o).length ? o : undefined);
-      return { x: xx, w };
-    };
-    const fundo = cor => { doc.setFillColor(cor); doc.rect(0, 0, PW, PH, "F"); };
-    const moldura = (cor = C.gold) => {
-      doc.setDrawColor(cor); doc.setLineWidth(0.6); doc.rect(14, 14, PW - 28, PH - 28, "S");
-      doc.setLineWidth(0.25); doc.rect(18, 18, PW - 36, PH - 36, "S");
-    };
-    const estrela = (cx, cy, r, cor = C.deep) => {
-      const pts = []; for (let i = 0; i < 8; i++) { const a = -Math.PI / 2 + i * Math.PI / 4; const rr = i % 2 ? r * 0.3 : r; pts.push([cx + rr * Math.cos(a), cy + rr * Math.sin(a)]); }
-      const d = pts.slice(1).map((p, i) => [p[0] - pts[i][0], p[1] - pts[i][1]]);
-      doc.setFillColor(cor); doc.lines(d, pts[0][0], pts[0][1], [1, 1], "F", true);
-    };
-    const divisor = (cx, y, w, cor = C.deep) => {
-      doc.setDrawColor(cor); doc.setLineWidth(0.4);
-      doc.line(cx - w / 2, y, cx - 9, y); doc.line(cx + 9, y, cx + w / 2, y);
-      estrela(cx, y, 4.2, cor);
-    };
-    const linhas = (s, size, maxW, maxL) => {
-      doc.setFontSize(size);
-      let ls = doc.splitTextToSize(String(s || ""), maxW);
-      if (maxL && ls.length > maxL) {
-        ls = ls.slice(0, maxL); let last = ls[maxL - 1];
-        while (last.length && doc.getTextWidth(last + "…") > maxW) last = last.slice(0, -1);
-        ls[maxL - 1] = last.replace(/[\s,.;:]+$/, "") + "…";
-      }
-      return ls;
-    };
-    const imgCache = {};
-    const addImg = (key, im, x, y, w, h) => { doc.addImage(im.data, "JPEG", x, y, w, h, key, "NONE"); };
-    const fotoFrame = (x, y, w, h, gap = 4) => { doc.setDrawColor(C.gold); doc.setLineWidth(0.5); doc.rect(x - gap, y - gap, w + gap * 2, h + gap * 2, "S"); };
-
-    /* --- 1. planejamento das páginas --- */
-    const M = 31.5, GAP = 14, colW = (PW - 2 * M - GAP) / 2, cardH = colW + 46, ROWGAP = 16, CATH = 30;
-    const agrupado = []; const cats = [];
-    for (const p of pecas) { const c = catOf(p) || "Outras peças"; if (!cats.includes(c)) cats.push(c); }
-    const usarCats = pecas.some(p => catOf(p));
-    const menu = []; // páginas: [{items:[{type,...}]}]
-    let pg = { items: [] }, y = usarCats ? 176 : 184; const LIM = PH - 48; const menuDe = new Map();
-    menu.push(pg);
-    const novaPagina = () => { pg = { items: [] }; menu.push(pg); y = 74; };
-    for (const c of cats) {
-      const doGrupo = pecas.filter(p => (catOf(p) || "Outras peças") === c);
-      for (let i = 0; i < doGrupo.length; i += 2) {
-        const row = doGrupo.slice(i, i + 2);
-        const precisaCab = usarCats && i === 0;
-        const alt = (precisaCab ? CATH : 0) + cardH;
-        if (y + alt > LIM) novaPagina();
-        if (precisaCab) { pg.items.push({ type: "cat", nome: c, y }); y += CATH; }
-        else if (usarCats && i > 0 && pg.items.length === 0) { pg.items.push({ type: "cat", nome: c + " (cont.)", y }); y += CATH; }
-        row.forEach((p, k) => { pg.items.push({ type: "peca", p, x: M + k * (colW + GAP), y }); menuDe.set(p.id, menu.length - 1); });
-        y += cardH + ROWGAP;
-      }
-    }
-    const MENU_INI = 2, nMenu = menu.length;
-    let prox = MENU_INI + nMenu;
-    const pagPeca = new Map(), pagGal = new Map();
-    pecas.forEach(p => { pagPeca.set(p.id, prox++); const n = (p.fotos || []).length; const g = []; for (let i = 1; i < n; i++) g.push(prox++); pagGal.set(p.id, g); });
-    const PAG_CONTATO = temContato ? prox++ : null;
-
-    /* --- 2. capa --- */
-    fundo(C.taupe);
-    const cw = 470, ch = cw * 864 / 1100;
-    doc.addImage(COVER_B64, "JPEG", (PW - cw) / 2, 128, cw, ch, "capa", "NONE");
-    moldura(C.deep);
-    T("VITRINE VIRTUAL", PW / 2, 62, { size: 8, color: C.deep, cs: 4, align: "center" });
-    divisor(PW / 2, 78, 120);
-    const agora = new Date();
-    const mes = agora.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }).toUpperCase().replace(" DE ", " · ");
-    let yc = 128 + ch + 22;
-    if (cfg.colecao) { T(cfg.colecao, PW / 2, yc, { size: 19, color: C.ink, align: "center" }); yc += 20; }
-    T(mes, PW / 2, yc, { size: 7.5, color: C.deep, cs: 3, align: "center" });
-    T(`${pecas.length} ${pecas.length === 1 ? "PEÇA" : "PEÇAS"} SELECIONADAS`, PW / 2, yc + 15, { size: 7, color: C.soft, cs: 2.5, align: "center" });
-    doc.setDrawColor(C.deep); doc.setLineWidth(0.5);
-    const bw = 214, bx = (PW - bw) / 2, by = PH - 102;
-    doc.setLineWidth(0.9); doc.roundedRect(bx, by, bw, 38, 19, 19, "S");
-    T("ENTRAR NA VITRINE  ›", PW / 2, by + 23, { size: 10, color: C.ink, cs: 2.6, align: "center", bold: true });
-    doc.link(0, 0, PW, PH, { pageNumber: MENU_INI });
-    doc.outline.add(null, "Capa", { pageNumber: 1 });
-    const outMenu = doc.outline.add(null, "Índice", { pageNumber: MENU_INI });
-
-    /* --- 3. índice (menu) --- */
-    const capas = new Map();
-    for (let m = 0; m < nMenu; m++) {
-      doc.addPage([PW, PH], "portrait");
-      fundo(C.cream); moldura();
-      if (m === 0) {
-        doc.addImage(EMBLEM_B64, "JPEG", PW / 2 - 29, 34, 58, 54, "emblema", "NONE");
-        doc.setDrawColor(C.gold); doc.setLineWidth(0.5); doc.circle(PW / 2, 61, 33, "S");
-        T("Vitrine", PW / 2, 126, { size: 30, color: C.ink, align: "center" });
-        T((cfg.colecao || "Le Helê Semi Joias").toUpperCase(), PW / 2, 143, { size: 7.5, color: C.deep, cs: 3, align: "center" });
-        divisor(PW / 2, 157, 150);
-        T("TOQUE EM UMA PEÇA PARA VER OS DETALHES", PW / 2, 172, { size: 5.8, color: C.soft, cs: 2, align: "center" });
-      } else {
-        T("VITRINE", M, 46, { size: 8, color: C.deep, cs: 3.5 });
-        T("LE HELÊ", PW - M, 46, { size: 8, color: C.deep, cs: 3.5, align: "right" });
-        doc.setDrawColor(C.gold); doc.setLineWidth(0.3); doc.line(M, 54, PW - M, 54);
-      }
-      for (const it of menu[m].items) {
-        if (it.type === "cat") {
-          const nome = it.nome.toUpperCase(); const w = txtW(nome, 10.5, 3);
-          T(nome, PW / 2, it.y + 15, { size: 10.5, color: C.cat, cs: 3, align: "center" });
-          doc.setDrawColor(C.gold); doc.setLineWidth(0.35);
-          doc.line(M, it.y + 11, PW / 2 - w / 2 - 12, it.y + 11); doc.line(PW / 2 + w / 2 + 12, it.y + 11, PW - M, it.y + 11);
-          continue;
-        }
-        const p = it.p;
-        passo(`Montando o índice: ${p.nome}`);
-        let im = null;
-        try { const img = await bitmapDe(await store.blob(p.fotos[0])); capas.set(p.id, img); im = recorte(img, "quadrado", 560); } catch (e) { }
-        if (im) addImg("t_" + p.id, im, it.x, it.y, colW, colW);
-        else { doc.setFillColor(C.taupe); doc.rect(it.x, it.y, colW, colW, "F"); }
-        doc.setDrawColor(C.gold); doc.setLineWidth(0.5); doc.rect(it.x, it.y, colW, colW, "S");
-        doc.setDrawColor("#FFFFFF"); doc.setLineWidth(0.4); doc.rect(it.x + 5, it.y + 5, colW - 10, colW - 10, "S");
-        const nl = linhas(p.nome, 11.5, colW - 6, 2);
-        nl.forEach((l, i) => T(l, it.x + colW / 2, it.y + colW + 16 + i * 13, { size: 11.5, color: C.ink, align: "center" }));
-        if (p.codigo) T(p.codigo.toUpperCase(), it.x + colW / 2, it.y + colW + 16 + nl.length * 13 + 1, { size: 6.5, color: C.deep, cs: 1.8, align: "center" });
-        doc.link(it.x, it.y, colW, cardH - 4, { pageNumber: pagPeca.get(p.id) });
-      }
-      // navegação do índice: uma página por vez, só pelos botões
-      const FY = PH - 36, navOpt = { size: 9, color: C.deep, cs: 2, bold: true };
-      const esq = m === 0 ? ["‹  CAPA", 1] : ["‹  ANTERIOR", MENU_INI + m - 1];
-      const rE = T(esq[0], M, FY, navOpt); doc.link(rE.x - 10, FY - 16, rE.w + 20, 26, { pageNumber: esq[1] });
-      const dir = m < nMenu - 1 ? ["PRÓXIMA  ›", MENU_INI + m + 1] : (temContato ? ["ATENDIMENTO  ›", PAG_CONTATO] : null);
-      if (dir) { const rD = T(dir[0], PW - M, FY, { ...navOpt, align: "right" }); doc.link(rD.x - 10, FY - 16, rD.w + 20, 26, { pageNumber: dir[1] }); }
-      if (nMenu > 1) T(`${m + 1} / ${nMenu}`, PW / 2, FY, { size: 8, color: C.soft, cs: 1.5, align: "center" });
-    }
-
-    /* --- 4. páginas das peças --- */
-    for (let idx = 0; idx < pecas.length; idx++) {
-      const p = pecas[idx]; const fotos = p.fotos || [];
-      const minhaPag = pagPeca.get(p.id), gal = pagGal.get(p.id);
-      const outP = doc.outline.add(outMenu, p.nome, { pageNumber: minhaPag });
-
-      // carrega fotos
-      const imgs = [];
-      for (let i = 0; i < fotos.length; i++) {
-        passo(`Preparando ${p.nome} · foto ${i + 1} de ${fotos.length}`);
-        try { const img = (i === 0 && capas.get(p.id)) || await bitmapDe(await store.blob(fotos[i])); imgs.push(img); } catch (e) { imgs.push(null); }
-      }
-      const main = imgs[0] ? recorte(imgs[0], "inteira", 1150, 0.84) : null;
-
-      doc.addPage([PW, PH], "portrait");
-      fundo(C.cream); moldura();
-      // navegação superior
-      const back = T("‹  ÍNDICE", 30, 44, { size: 11.5, color: C.deep, cs: 2.2, bold: true });
-      doc.link(18, 24, back.w + 24, 28, { pageNumber: MENU_INI + (menuDe.get(p.id) || 0) });
-      const cont = `${String(idx + 1).padStart(2, "0")} / ${String(pecas.length).padStart(2, "0")}`;
-      T(cont, PW / 2, 44, { size: 7.5, color: C.soft, cs: 1.5, align: "center" });
-      const ant = idx > 0 ? pagPeca.get(pecas[idx - 1].id) : null, seg = idx < pecas.length - 1 ? pagPeca.get(pecas[idx + 1].id) : null;
-      const rNext = T("›", PW - 30, 49, { size: 30, color: seg ? C.deep : C.taupe, align: "right", bold: !!seg });
-      const rPrev = T("‹", PW - 76, 49, { size: 30, color: ant ? C.deep : C.taupe, align: "right", bold: !!ant });
-      if (seg) doc.link(PW - 58, 20, 42, 38, { pageNumber: seg });
-      if (ant) doc.link(PW - 104, 20, 42, 38, { pageNumber: ant });
-
-      // cálculo de espaço para a descrição
-      const DESC_W = 300, DESC_S = 10, DESC_LH = 14.5;
-      const descLs = p.descricao ? linhas(p.descricao, DESC_S, DESC_W) : [];
-      const nomeLs = linhas(p.nome, 22, 320, 2);
-      const url = zap ? whatsLink(zap, `Olá! Vi a vitrine Le Helê e tenho interesse na peça ${p.nome}${p.codigo ? " (" + p.codigo + ")" : ""}.`) : null;
-      const temThumbs = fotos.length > 1;
-      let fotoMax = 292 - Math.max(0, descLs.length - 3) * DESC_LH - (nomeLs.length - 1) * 25;
-      fotoMax = Math.max(215, Math.min(292, fotoMax));
-      const boxW = PW - 2 * 36, top = 64;
-      let fw = boxW, fh = boxW;
-      if (main) { const k = Math.min(boxW / main.w, fotoMax / main.h); fw = main.w * k; fh = main.h * k; } else { fh = fotoMax; }
-      const fx = (PW - fw) / 2;
-      if (main) addImg("m_" + p.id, main, fx, top, fw, fh); else { doc.setFillColor(C.taupe); doc.rect(fx, top, fw, fh, "F"); }
-      fotoFrame(fx, top, fw, fh, 5);
-      let yy = top + fh + 5;
-      if (temThumbs) {
-        const n = Math.min(fotos.length, 7), s = 36, g = 8, tw = n * s + (n - 1) * g; let tx = (PW - tw) / 2; const ty = yy + 12;
-        for (let i = 0; i < n; i++) {
-          if (imgs[i]) { const tImg = recorte(imgs[i], "quadrado", 180, 0.8); addImg(`s_${p.id}_${i}`, tImg, tx, ty, s, s); }
-          else { doc.setFillColor(C.taupe); doc.rect(tx, ty, s, s, "F"); }
-          doc.setDrawColor(i === 0 ? C.deep : C.gold); doc.setLineWidth(i === 0 ? 1 : 0.4); doc.rect(tx, ty, s, s, "S");
-          if (i > 0) doc.link(tx, ty, s, s, { pageNumber: gal[i - 1] });
-          tx += s + g;
-        }
-        yy = ty + s + 4;
-        T("TOQUE NAS MINIATURAS PARA AMPLIAR", PW / 2, yy + 8, { size: 5.5, color: C.soft, cs: 1.6, align: "center" });
-        yy += 10;
-      }
-      let ty = yy + 26;
-      if (catOf(p)) { T(catOf(p).toUpperCase(), PW / 2, ty, { size: 9.5, color: C.cat, cs: 3, align: "center" }); ty += 26; } else ty += 6;
-      nomeLs.forEach((l, i) => T(l, PW / 2, ty + i * 25, { size: 22, color: C.ink, align: "center" }));
-      ty += (nomeLs.length - 1) * 25 + 16;
-      if (p.codigo) { T("REF. " + p.codigo.toUpperCase(), PW / 2, ty, { size: 7, color: C.soft, cs: 2, align: "center" }); ty += 14; }
-      divisor(PW / 2, ty, 110); ty += 26;
-      T(brl(p.valor) || "Sob consulta", PW / 2, ty, { size: p.valor != null ? 21 : 15, color: C.deep, align: "center" });
-      ty += 17;
-      if (p.banho) {
-        const bt = "BANHO · " + p.banho.toUpperCase().replace(/^BANHO\s+/, ""); let bs = 9.5;
-        while (bs > 6.5 && txtW(bt, bs, 2) > 330) bs -= 0.5;
-        T(bt, PW / 2, ty + 2, { size: bs, color: C.ink, cs: 2, align: "center" }); ty += 17;
-      }
-      ty += 12;
-      const limite = url ? PH - 110 : PH - 44;
-      const cabem = Math.max(0, Math.floor((limite - ty) / DESC_LH) + 1);
-      if (descLs.length) {
-        const ls = descLs.length > cabem ? linhas(p.descricao, DESC_S, DESC_W, cabem) : descLs;
-        ls.forEach((l, i) => T(l, PW / 2, ty + i * DESC_LH, { size: DESC_S, color: C.ink, align: "center" }));
-      }
-      if (url) {
-        const w = 222, h = 38, x = (PW - w) / 2, yb = PH - 92;
-        doc.setFillColor(C.deep); doc.roundedRect(x, yb, w, h, 19, 19, "F");
-        T("QUERO ESTA PEÇA", PW / 2, yb + 23, { size: 10, color: C.paper, cs: 2.8, align: "center", bold: true });
-        doc.link(x, yb, w, h, { url });
-        T("ATENDIMENTO PELO WHATSAPP", PW / 2, yb + h + 12, { size: 5.5, color: C.soft, cs: 1.8, align: "center" });
-      }
-
-      // galeria
-      for (let i = 1; i < fotos.length; i++) {
-        doc.addPage([PW, PH], "portrait");
-        fundo(C.taupe); moldura(C.deep);
-        const b = T("‹  VOLTAR À PEÇA", 30, 43, { size: 9, color: C.ink, cs: 2.2, bold: true });
-        doc.link(18, 24, b.w + 24, 28, { pageNumber: minhaPag });
-        T(`FOTO ${i + 1} DE ${fotos.length}`, PW - 30, 42, { size: 7, color: C.ink, cs: 1.8, align: "right" });
-        const gl = linhas(p.nome, 17, 320, 1)[0];
-        T(gl, PW / 2, 80, { size: 17, color: C.ink, align: "center" });
-        divisor(PW / 2, 94, 90);
-        const gimg = imgs[i] ? recorte(imgs[i], "inteira", 1150, 0.84) : null;
-        const maxW = PW - 64, maxH = PH - 118 - 92;
-        let gw = maxW, gh = maxH;
-        if (gimg) { const k = Math.min(maxW / gimg.w, maxH / gimg.h); gw = gimg.w * k; gh = gimg.h * k; }
-        const gx = (PW - gw) / 2, gy = 118 + (maxH - gh) / 2;
-        if (gimg) addImg(`g_${p.id}_${i}`, gimg, gx, gy, gw, gh); else { doc.setFillColor(C.cream); doc.rect(gx, gy, gw, gh, "F"); }
-        doc.setDrawColor(C.cream); doc.setLineWidth(0.6); doc.rect(gx - 5, gy - 5, gw + 10, gh + 10, "S");
-        const prevPg = i === 1 ? minhaPag : gal[i - 2], nextPg = i < fotos.length - 1 ? gal[i] : null;
-        const ra = T("‹  ANTERIOR", 30, PH - 42, { size: 9, color: C.ink, cs: 2, bold: true }); doc.link(18, PH - 60, ra.w + 24, 30, { pageNumber: prevPg });
-        if (nextPg) { const rp = T("PRÓXIMA  ›", PW - 30, PH - 42, { size: 9, color: C.ink, cs: 2, align: "right", bold: true }); doc.link(rp.x - 12, PH - 60, rp.w + 24, 30, { pageNumber: nextPg }); }
-        else { const rp = T("VOLTAR À PEÇA  ›", PW - 30, PH - 42, { size: 9, color: C.ink, cs: 2, align: "right", bold: true }); doc.link(rp.x - 12, PH - 60, rp.w + 24, 30, { pageNumber: minhaPag }); }
-      }
-    }
-
-    /* --- 5. atendimento --- */
-    if (temContato) {
-      doc.addPage([PW, PH], "portrait");
-      fundo(C.taupe); moldura(C.deep);
-      doc.addImage(EMBLEM_B64, "JPEG", PW / 2 - 55, 150, 110, 103, "emblema", "NONE");
-      T("Atendimento", PW / 2, 300, { size: 28, color: C.ink, align: "center" });
-      divisor(PW / 2, 318, 130);
-      let yk = 360;
-      if (zap) {
-        T("WHATSAPP", PW / 2, yk, { size: 7.5, color: C.deep, cs: 3, align: "center" });
-        const r = T(cfg.whatsapp, PW / 2, yk + 24, { size: 17, color: C.ink, align: "center" });
-        doc.link(r.x - 10, yk + 6, r.w + 20, 26, { url: whatsLink(zap, "Olá! Vi a vitrine Le Helê e gostaria de atendimento.") });
-        yk += 64;
-      }
-      if (cfg.instagram) {
-        T("INSTAGRAM", PW / 2, yk, { size: 7.5, color: C.deep, cs: 3, align: "center" });
-        const handle = cfg.instagram.replace(/^@/, "");
-        const r = T("@" + handle, PW / 2, yk + 24, { size: 17, color: C.ink, align: "center" });
-        doc.link(r.x - 10, yk + 6, r.w + 20, 26, { url: "https://instagram.com/" + encodeURIComponent(handle) });
-        yk += 64;
-      }
-      T("Para a mais bela das belas.", PW / 2, PH - 110, { size: 13, color: C.deep, align: "center" });
-      const rb = T("‹  VOLTAR AO ÍNDICE", PW / 2, PH - 60, { size: 9, color: C.ink, cs: 2.2, align: "center", bold: true });
-      doc.link(rb.x - 12, PH - 78, rb.w + 24, 30, { pageNumber: MENU_INI });
-      doc.outline.add(null, "Atendimento", { pageNumber: PAG_CONTATO });
-    }
-
-    txt.textContent = "Finalizando o arquivo…"; bar.style.width = "100%";
-    await sleep(30);
-    const blob = doc.output("blob");
-    const base = `Vitrine Le Hele ${agora.toISOString().slice(0, 10)}`;
-    window.__ultimoPDF = blob;
-    await entregar(blob, base + ".pdf");
-  } catch (e) {
-    console.error(e);
-    $("#gTitulo").textContent = "Não deu certo";
-    txt.textContent = "O PDF não pôde ser criado. Verifique a conexão e tente novamente.";
-    mostrarBotoes([["Fechar", () => ov.hidden = true, false]]);
-  }
-}
 function mostrarBotoes(lista) {
   const b = $("#gBtns"); b.innerHTML = ""; b.hidden = false;
   lista.forEach(([t, fn, prim]) => { const x = document.createElement("button"); x.className = "btn" + (prim ? " primary" : ""); x.textContent = t; x.onclick = fn; b.appendChild(x); });
@@ -1311,18 +986,6 @@ async function compartilharOuBaixar(blob, nome, tipo) {
   }
   baixar(blob, nome); return "baixado";
 }
-async function entregar(blob, nome) {
-  const ov = $("#gerando");
-  const mb = (blob.size / 1048576).toFixed(1).replace(".", ",") + " MB";
-  const nAt = S.pecas.filter(p => !p.arquivada).length;
-  $("#gTitulo").textContent = "PDF pronto";
-  $("#gTexto").textContent = `${nAt} ${nAt === 1 ? "peça" : "peças"} · ${mb}. Bom para imprimir ou para quem prefere arquivo. Para as clientes, o link da vitrine online já mostra tudo atualizado.`;
-  mostrarBotoes([
-    ["Compartilhar / salvar PDF", async () => { const r = await compartilharOuBaixar(blob, nome, "application/pdf"); if (r !== "cancelado") toast(r === "baixado" ? "PDF baixado" : "PDF compartilhado"); }, true],
-    ["Fechar", () => ov.hidden = true, false]
-  ]);
-}
-
 /* ---------- cópia de segurança ---------- */
 const blobParaDataURL = blob => new Promise(r => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(blob); });
 async function dataURLParaBlob(d) { return (await fetch(d)).blob(); }
@@ -1383,7 +1046,6 @@ $("#arqImport").addEventListener("change", async e => {
   mostrarBotoes([["Fechar", () => $("#gerando").hidden = true, true]]);
 });
 
-$("#btnPdf").onclick = gerarPDF;
 
 boot();
 </script>

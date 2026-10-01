@@ -12,7 +12,7 @@
   const G = {
     pecas: [], custos: new Map(), forn: [], vendas: [], perdas: [], fin: [], traf: [], cfg: null,
     aba: "resumo", f: { ano: "", mes: "", canal: "", linha: "", regiao: "", pag: "" },
-    busca: { estoque: "", vendas: "", perdas: "", fin: "" }, mesLista: { vendas: "", perdas: "", fin: "", traf: "" }
+    busca: { estoque: "", vendas: "", perdas: "", fin: "", notas: "" }, mesLista: { vendas: "", perdas: "", fin: "", traf: "", notas: "" }, notas: []
   };
   let sb = null;
 
@@ -43,6 +43,7 @@
     return isFinite(n) ? n : null;
   }
   const dinIn = c => c == null ? "" : (c / 100).toFixed(2).replace(".", ",");
+  const tamanho = b => b >= 1048576 ? (b / 1048576).toFixed(1).replace(".", ",") + " MB" : Math.max(1, Math.round(b / 1024)) + " KB";
   const parsePct = s => { s = String(s ?? "").replace(",", ".").replace(/[^\d.-]/g, ""); if (!s) return null; const n = parseFloat(s) / 100; return isFinite(n) ? n : null; };
   const parseNum = s => { s = String(s ?? "").replace(",", ".").replace(/[^\d.-]/g, ""); if (!s) return null; const n = parseFloat(s); return isFinite(n) ? n : null; };
   let toastT;
@@ -98,11 +99,12 @@
 
   /* ---------- contas (as mesmas fórmulas da planilha) ---------- */
   function contaVenda(v) {
-    const total = (v.quantidade || 0) * (v.preco_unit || 0);
+    const bruto = (v.quantidade || 0) * (v.preco_unit || 0), desconto = v.desconto || 0;
+    const total = bruto - desconto;
     const custoT = v.custo_unit == null ? null : (v.quantidade || 0) * v.custo_unit;
     const taxa = Math.round(total * (Number(v.taxa_pct) || 0));
     const lucro = custoT == null ? null : total - custoT - taxa;
-    return { total, custoT, taxa, lucro, margem: lucro == null || !total ? null : lucro / total };
+    return { bruto, desconto, total, custoT, taxa, lucro, margem: lucro == null || !total ? null : lucro / total };
   }
   function contaPerda(p) {
     const custoPerda = p.retorna ? 0 : (p.quantidade || 0) * (p.custo_unit || 0);
@@ -116,7 +118,7 @@
     const q = (t, ord) => { let x = sb.from(t).select("*"); if (ord) x = x.order(ord, { ascending: true }); return x; };
     const rs = await Promise.all([
       q("pecas", "criado_em"), q("pecas_custos"), q("fornecedores", "criado_em"), q("vendas", "data"),
-      q("perdas", "data"), q("financeiro", "data"), q("trafego", "data"), sb.from("gestao_config").select("*").eq("id", 1).maybeSingle()
+      q("perdas", "data"), q("financeiro", "data"), q("trafego", "data"), sb.from("gestao_config").select("*").eq("id", 1).maybeSingle(), q("notas_fiscais", "data")
     ]);
     const erro = rs.find(r => r.error);
     if (erro) throw erro.error;
@@ -124,7 +126,7 @@
     G.custos = new Map((rs[1].data || []).map(r => [r.peca_id, r]));
     G.forn = rs[2].data || [];
     G.vendas = rs[3].data || []; G.perdas = rs[4].data || []; G.fin = rs[5].data || []; G.traf = rs[6].data || [];
-    G.cfg = lerCfg(rs[7].data);
+    G.cfg = lerCfg(rs[7].data); G.notas = rs[8].data || [];
   }
   async function gravar(tabela, id, linha) {
     if (id) { const { error } = await sb.from(tabela).update(linha).eq("id", id); if (error) throw error; return id; }
@@ -148,7 +150,8 @@
     if (error) throw error;
   }
   async function recarregar() { try { await carregar(); desenhar(); } catch (e) { console.error(e); } }
-  const falhou = e => { console.error(e); toast(/relation|does not exist|schema cache|PGRST20/i.test((e && (e.message || e.code)) || "") ? "Falta rodar o gestao.sql no Supabase." : "Não foi possível salvar. Verifique a internet."); };
+  const falhou = e => { if (e && e.aviso) { toast(e.aviso); return; } console.error(e); const m = (e && (e.message || e.code || e.error)) || "";
+    toast(/relation|does not exist|schema cache|PGRST20|bucket not found|column/i.test(m) ? "Falta rodar o gestao.sql novo no Supabase." : /mime|type/i.test(m) ? "Tipo de arquivo não aceito. Use JPG, PNG ou PDF." : /size|large|exceed/i.test(m) ? "Arquivo grande demais (limite 15 MB)." : "Não foi possível salvar. Verifique a internet."); };
 
   /* ---------- gráficos (barras em HTML; linhas e colunas em SVG) ---------- */
   function barras(itens, { fmt = dinCurto, vazio = "Sem dados no período.", max: lim = 10, foto = false } = {}) {
@@ -253,19 +256,24 @@
     else if (c.tipo === "dinheiro") inp = `<div class="money"><span>R$</span><input id="${id}" inputmode="decimal" autocomplete="off" placeholder="0,00" value="${esc(dinIn(v))}"></div>`;
     else if (c.tipo === "pct") inp = `<div class="money sufixo"><input id="${id}" inputmode="decimal" autocomplete="off" placeholder="0" value="${esc(pctIn(v))}"><span>%</span></div>`;
     else if (c.tipo === "numero") inp = `<input id="${id}" inputmode="numeric" autocomplete="off" value="${esc(v ?? "")}">`;
+    else if (c.tipo === "arquivo") inp = `<label class="arq" for="${id}"><span class="arq-b">${esc(c.botao || "Escolher arquivo")}</span><span class="arq-n" id="${id}_n">${esc(c.atual || "Nenhum arquivo escolhido")}</span></label><input id="${id}" type="file" accept="${esc(c.aceita || "")}" hidden>`;
     else inp = `<input id="${id}" autocomplete="off" maxlength="120" value="${esc(v ?? "")}" ${c.lista ? `list="dl_${c.k}"` : ""}>${c.lista ? `<datalist id="dl_${c.k}">${c.lista.map(o => `<option value="${esc(o)}">`).join("")}</datalist>` : ""}`;
     return `<div class="field ${c.meia ? "meia" : ""}">${lab}${inp}${dica}</div>`;
   }
-  function lerCampo(c) {
+  function lerCampo(c, o) {
     if (c.tipo === "seg") { const r = document.querySelector(`input[name="fm_${c.k}"]:checked`); return r ? r.value : null; }
     const el = $("#fm_" + c.k); if (!el) return null;
     const s = el.value;
-    if (c.tipo === "dinheiro") return parseDin(s);
+    if (c.tipo === "dinheiro") {
+      if (c.pctBase && s.includes("%")) { const pc = parsePct(s); return pc == null ? null : Math.round(c.pctBase(o || {}) * pc); }
+      return parseDin(s);
+    }
+    if (c.tipo === "arquivo") return el.files && el.files[0] || null;
     if (c.tipo === "pct") return parsePct(s);
     if (c.tipo === "numero") { const n = parseNum(s); return n == null ? null : Math.round(n); }
     return s.trim();
   }
-  function lerForm() { const o = {}; FM.campos.forEach(c => o[c.k] = lerCampo(c)); return o; }
+  function lerForm() { const o = {}; FM.campos.forEach(c => o[c.k] = lerCampo(c, o)); return o; }
   function desenharForm() {
     $("#fmCampos").innerHTML = FM.campos.map(c => campoHTML(c, FM.vals[c.k])).join("");
     atualizarCalc();
@@ -307,6 +315,8 @@
   $("#fmCampos").addEventListener("input", e => {
     if (!FM) return;
     const c = FM.campos.find(c => e.target.id === "fm_" + c.k || e.target.name === "fm_" + c.k);
+    if (c && c.tipo === "arquivo") { const f = e.target.files && e.target.files[0]; const n = $("#fm_" + c.k + "_n"); if (n) n.textContent = f ? `${f.name} · ${tamanho(f.size)}` : (c.atual || "Nenhum arquivo escolhido"); }
+    if (c && FM.aoDigitar) FM.aoDigitar(c.k, Object.assign({}, FM.vals, lerForm()));
     if (c && FM.aoMudar) {
       const antes = Object.assign({}, FM.vals, lerForm());
       const muda = FM.aoMudar(c.k, antes);
@@ -314,10 +324,10 @@
     }
     atualizarCalc();
   });
-  $("#fmCampos").addEventListener("change", e => { if (FM && e.target.tagName === "SELECT") $("#fmCampos").dispatchEvent(new Event("input", { bubbles: true })); });
+  $("#fmCampos").addEventListener("change", e => { if (FM && (e.target.tagName === "SELECT" || e.target.type === "file")) e.target.dispatchEvent(new Event("input", { bubbles: true })); });
   $("#fmCampos").addEventListener("blur", e => {
     const c = FM && FM.campos.find(c => e.target.id === "fm_" + c.k);
-    if (c && c.tipo === "dinheiro") e.target.value = dinIn(parseDin(e.target.value));
+    if (c && c.tipo === "dinheiro") e.target.value = dinIn(c.pctBase && e.target.value.includes("%") ? lerCampo(c, lerForm()) : parseDin(e.target.value));
   }, true);
 
   /* ---------- componentes ---------- */
@@ -342,11 +352,11 @@
   const ABAS = [
     { id: "resumo", nome: "Resumo" }, { id: "estoque", nome: "Estoque" }, { id: "vendas", nome: "Vendas" },
     { id: "perdas", nome: "Perdas" }, { id: "financeiro", nome: "Financeiro" }, { id: "precos", nome: "Preços" },
-    { id: "fornecedores", nome: "Fornecedores" }, { id: "trafego", nome: "Tráfego" }
+    { id: "fornecedores", nome: "Fornecedores" }, { id: "trafego", nome: "Tráfego" }, { id: "notas", nome: "Notas fiscais" }
   ];
   const ACOES = {
     vendas: ["Nova venda", () => formVenda()], perdas: ["Nova perda", () => formPerda()], financeiro: ["Nova movimentação", () => formFin()],
-    fornecedores: ["Novo fornecedor", () => formForn()], trafego: ["Nova campanha", () => formTraf()]
+    fornecedores: ["Novo fornecedor", () => formForn()], trafego: ["Nova campanha", () => formTraf()], notas: ["Anexar nota fiscal", () => formNota()]
   };
 
   /* ---------- RESUMO ---------- */
@@ -386,7 +396,7 @@
       ${kpi("Ticket médio", din(vs.length ? Math.round(receita / vs.length) : null))}
       ${kpi("Peças vendidas", milhar(pecasV))}
       ${kpi("Nº de vendas", milhar(vs.length))}
-      ${kpi("Taxas de maquininha", din(taxas))}
+      ${kpi("Taxas de maquininha", din(taxas), `descontos dados ${dinCurto(cs.reduce((s, x) => s + Math.max(0, x.c.desconto), 0))}`)}
       ${kpi("Unidades em estoque", milhar(unidades), `${dinCurto(valorEst)} a preço de custo · agora`)}
     </div>${nEsg || nAcab ? `<p class="aviso-est"><span>${[nEsg ? `${nEsg} ${nEsg === 1 ? "peça esgotada" : "peças esgotadas"}` : "", nAcab ? `${nAcab} acabando` : ""].filter(Boolean).join(" · ")}</span><button class="linkbtn" type="button" data-ir="estoque">Ver no estoque</button></p>` : ""}${semCusto ? `<p class="aviso-s">${semCusto} ${semCusto === 1 ? "venda está" : "vendas estão"} sem custo da peça, então o lucro dela${semCusto === 1 ? "" : "s"} não entra na conta. Informe o custo em Estoque.</p>` : ""}`;
     const kpisO = `<div class="kpis k3">
@@ -506,12 +516,13 @@
     const lista = noMes(G.vendas, "vendas").filter(v => !q || norm(v.peca_nome).includes(q) || norm(v.canal).includes(q)).slice().sort((a, b) => (b.data || "").localeCompare(a.data || "") || (b.criado_em || "").localeCompare(a.criado_em || ""));
     const cs = lista.map(v => contaVenda(v));
     const tot = cs.reduce((s, c) => s + c.total, 0), luc = cs.reduce((s, c) => s + (c.lucro || 0), 0), tx = cs.reduce((s, c) => s + c.taxa, 0);
+    const descT = cs.reduce((s, c) => s + Math.max(0, c.desconto), 0), pcs = lista.reduce((s, v) => s + (v.quantidade || 0), 0);
     const porCanal = new Map(); lista.forEach((v, i) => porCanal.set(v.canal || "Não informado", (porCanal.get(v.canal || "Não informado") || 0) + cs[i].total));
     const itens = lista.map((v, i) => { const c = cs[i]; return `<li class="reg" data-venda="${esc(v.id)}" tabindex="0" role="button">
       ${fotoDe(pecaDe(v.peca_id)) ? `<img src="${esc(fotoDe(pecaDe(v.peca_id)))}" alt="" loading="lazy">` : '<span class="semfoto"></span>'}
       <div class="meio"><b>${esc(v.quantidade > 1 ? v.quantidade + "× " : "")}${esc(v.peca_nome || "Peça")}</b><span>${esc([dataBR(v.data), v.canal, v.pagamento, v.regiao].filter(Boolean).join(" · "))}</span></div>
-      <div class="dir"><b>${esc(din(c.total))}</b><small class="${c.lucro != null && c.lucro < 0 ? "neg" : ""}">${c.lucro == null ? "sem custo" : "lucro " + esc(din(c.lucro))}</small>${c.margem != null ? `<small>${esc(pct(c.margem))}</small>` : ""}</div></li>`; }).join("");
-    return `<div class="kpis k3">${kpi("Total vendido", din(tot))}${kpi("Lucro líquido", din(luc), "", luc < 0 ? "neg" : "")}${kpi("Taxas de maquininha", din(tx))}${kpi("Ticket médio", din(lista.length ? Math.round(tot / lista.length) : null))}${kpi("Margem média", pct(tot ? luc / tot : null))}${kpi("Nº de vendas", milhar(lista.length))}</div>
+      <div class="dir"><b>${esc(din(c.total))}</b>${c.desconto > 0 ? `<small>desconto ${esc(din(c.desconto))}</small>` : ""}<small class="${c.lucro != null && c.lucro < 0 ? "neg" : ""}">${c.lucro == null ? "sem custo" : "lucro " + esc(din(c.lucro))}</small>${c.margem != null ? `<small>${esc(pct(c.margem))}</small>` : ""}</div></li>`; }).join("");
+    return `<div class="kpis k4">${kpi("Total vendido", din(tot), "já com descontos")}${kpi("Lucro líquido", din(luc), "", luc < 0 ? "neg" : "")}${kpi("Descontos dados", din(descT), tot + descT ? pct(descT / (tot + descT)) + " do valor cheio" : "")}${kpi("Taxas de maquininha", din(tx))}${kpi("Ticket médio", din(lista.length ? Math.round(tot / lista.length) : null))}${kpi("Margem média", pct(tot ? luc / tot : null))}${kpi("Nº de vendas", milhar(lista.length))}${kpi("Peças vendidas", milhar(pcs))}</div>
       ${cartao("Vendas por canal", barras([...porCanal].map(([r, v]) => ({ rotulo: r, valor: v }))))}
       <div class="busca">${seletorMes(G.vendas, "vendas")}<input type="search" data-busca="vendas" placeholder="Buscar peça ou canal" value="${esc(G.busca.vendas)}" aria-label="Buscar venda"></div>
       <ul class="regs">${itens || `<li class="vazio-g">${G.vendas.length ? "Nenhuma venda encontrada." : "Nenhuma venda registrada ainda. Toque em “Nova venda”."}</li>`}</ul>`;
@@ -526,22 +537,34 @@
         { k: "canal", rotulo: "Canal", tipo: "lista", obrig: true, meia: true, opcoes: () => ops(G.cfg.listas.canais) },
         { k: "peca_id", rotulo: "Peça", tipo: "lista", obrig: true, opcoes: opcoesPecas },
         { k: "quantidade", rotulo: "Quantidade", tipo: "numero", obrig: true, meia: true },
-        { k: "preco_unit", rotulo: "Preço unitário", tipo: "dinheiro", obrig: true, meia: true, dica: "Vem da vitrine; mude se deu desconto." },
+        { k: "preco_unit", rotulo: "Preço unitário", tipo: "dinheiro", obrig: true, meia: true, dica: "Vem da vitrine." },
+        { k: "desconto", rotulo: "Desconto", tipo: "dinheiro", meia: true, pctBase: o => (o.quantidade || 0) * (o.preco_unit || 0), dica: "No total da venda. Pode digitar em %, ex.: 10%." },
+        { k: "valor_final", rotulo: "Valor final", tipo: "dinheiro", obrig: true, meia: true, dica: "Edite para arredondar; o desconto se ajusta." },
         { k: "pagamento", rotulo: "Forma de pagamento", tipo: "lista", obrig: true, meia: true, opcoes: () => formas().map(fm => ({ v: fm, t: `${fm} (${pct(taxaDe(fm), 2)})` })) },
         { k: "regiao", rotulo: "Região", tipo: "lista", meia: true, opcoes: () => ops(G.cfg.listas.regioes), vazio: "Não informada" },
         { k: "obs", rotulo: "Observações", tipo: "area" }
       ],
-      vals: v0 ? Object.assign({}, v0) : { data: hoje(), quantidade: 1, canal: ultimo.canal || "", pagamento: ultimo.pagamento || "Pix", regiao: ultimo.regiao || "" },
-      aoMudar: (k, v) => { if (k === "peca_id") { const p = pecaDe(v.peca_id); if (p && p.valor != null) return { preco_unit: p.valor }; } },
+      vals: v0 ? Object.assign({}, v0, { desconto: v0.desconto || null, valor_final: (v0.quantidade || 0) * (v0.preco_unit || 0) - (v0.desconto || 0) })
+        : { data: hoje(), quantidade: 1, canal: ultimo.canal || "", pagamento: ultimo.pagamento || "Pix", regiao: ultimo.regiao || "" },
+      aoMudar: (k, v) => { if (k === "peca_id") { const p = pecaDe(v.peca_id); if (p && p.valor != null) return { preco_unit: p.valor, valor_final: (v.quantidade || 0) * p.valor - (v.desconto || 0) }; } },
+      // desconto e valor final andam juntos: mudar um ajusta o outro
+      aoDigitar: (k, v) => {
+        const bruto = (v.quantidade || 0) * (v.preco_unit || 0);
+        if (k === "valor_final") { const el = $("#fm_desconto"); if (el && document.activeElement !== el) el.value = v.valor_final == null ? "" : (bruto - v.valor_final ? dinIn(bruto - v.valor_final) : ""); }
+        else if (["quantidade", "preco_unit", "desconto"].includes(k)) { const el = $("#fm_valor_final"); if (el && document.activeElement !== el) el.value = dinIn(bruto - (v.desconto || 0)); }
+      },
       calcular: v => {
         const mesmaPeca = v0 && v0.peca_id === v.peca_id, mesmaForma = v0 && v0.pagamento === v.pagamento;
         const custo = mesmaPeca && v0.custo_unit != null ? v0.custo_unit : custoDe(v.peca_id);
         const taxa = mesmaForma ? Number(v0.taxa_pct) : taxaDe(v.pagamento);
         if (!v.peca_id || !v.quantidade) return [];
-        const c = contaVenda({ quantidade: v.quantidade, preco_unit: v.preco_unit || 0, custo_unit: custo, taxa_pct: taxa });
+        const bruto = v.quantidade * (v.preco_unit || 0), desc = v.valor_final != null ? bruto - v.valor_final : (v.desconto || 0);
+        const c = contaVenda({ quantidade: v.quantidade, preco_unit: v.preco_unit || 0, desconto: desc, custo_unit: custo, taxa_pct: taxa });
         const p = pecaDe(v.peca_id);
         return [
-          { r: "Valor total", v: din(c.total), destaque: true },
+          ...(desc ? [{ r: `Valor sem desconto (${v.quantidade} × ${din(v.preco_unit || 0)})`, v: din(bruto) },
+            { r: desc > 0 ? `Desconto (${pct(bruto ? desc / bruto : null)})` : "Acréscimo (arredondamento)", v: (desc > 0 ? "− " : "+ ") + din(Math.abs(desc)), alerta: c.total < 0 }] : []),
+          { r: "Valor total da venda", v: din(c.total), destaque: true },
           { r: "Custo unitário", v: custo == null ? "não informado" : din(custo) },
           { r: "Custo total", v: din(c.custoT) },
           { r: `Taxa da maquininha (${pct(taxa, 2)})`, v: din(c.taxa) },
@@ -553,9 +576,11 @@
       },
       salvar: async v => {
         const p = pecaDe(v.peca_id), mesmaPeca = v0 && v0.peca_id === v.peca_id, mesmaForma = v0 && v0.pagamento === v.pagamento;
+        const bruto = (v.quantidade || 0) * (v.preco_unit || 0), desconto = bruto - v.valor_final;
+        if (v.valor_final < 0) throw Object.assign(new Error("valor"), { aviso: "O valor final não pode ser negativo." });
         await gravar("vendas", id, {
           data: v.data, canal: v.canal, peca_id: v.peca_id || null, peca_nome: p ? p.nome : (v0 && v0.peca_nome) || "",
-          linha: p ? p.linha : "semijoias", categoria: p ? catOf(p) : "", quantidade: v.quantidade, preco_unit: v.preco_unit || 0,
+          linha: p ? p.linha : "semijoias", categoria: p ? catOf(p) : "", quantidade: v.quantidade, preco_unit: v.preco_unit || 0, desconto,
           custo_unit: mesmaPeca && v0.custo_unit != null ? v0.custo_unit : custoDe(v.peca_id),
           pagamento: v.pagamento, taxa_pct: mesmaForma ? Number(v0.taxa_pct) : taxaDe(v.pagamento), regiao: v.regiao || "", obs: v.obs || ""
         });
@@ -780,6 +805,76 @@
     });
   }
 
+  /* ---------- NOTAS FISCAIS (arquivos na pasta privada "notas") ---------- */
+  const NOTA_TIPOS = { "image/jpeg": "jpg", "image/png": "png", "application/pdf": "pdf" }, NOTA_MAX = 15 * 1048576;
+  const tipoNota = f => NOTA_TIPOS[f.type] ? f.type : ({ jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", pdf: "application/pdf" })[(f.name.split(".").pop() || "").toLowerCase()] || "";
+  const ehPdf = n => /pdf/.test(n.arquivo_tipo || "") || /\.pdf$/i.test(n.arquivo || "");
+  async function linkNota(n) {
+    const { data, error } = await sb.storage.from("notas").createSignedUrl(n.arquivo, 3600);
+    if (error) throw error;
+    return data.signedUrl;
+  }
+  function abaNotas() {
+    const q = norm(G.busca.notas);
+    const lista = noMes(G.notas, "notas").filter(n => !q || norm(n.numero).includes(q) || norm(n.descricao).includes(q) || norm((fornDe(n.fornecedor_id) || {}).nome).includes(q) || norm(n.arquivo_nome).includes(q))
+      .slice().sort((a, b) => (b.data || "").localeCompare(a.data || "") || (b.criado_em || "").localeCompare(a.criado_em || ""));
+    const tot = lista.reduce((s, n) => s + (n.valor || 0), 0);
+    const itens = lista.map(n => { const fo = fornDe(n.fornecedor_id); return `<li class="reg sem-foto" data-nota="${esc(n.id)}" tabindex="0" role="button">
+      <span class="sinal doc">${ehPdf(n) ? "PDF" : "IMG"}</span>
+      <div class="meio"><b>${esc(n.numero ? "NF " + n.numero : (n.descricao || n.arquivo_nome || "Nota fiscal"))}</b><span>${esc([dataBR(n.data), fo ? fo.nome : ""].filter(Boolean).join(" · "))}</span>${n.numero && n.descricao ? `<span>${esc(n.descricao)}</span>` : ""}</div>
+      <div class="dir">${n.valor != null ? `<b>${esc(din(n.valor))}</b>` : ""}<small>${esc(tamanho(n.arquivo_tamanho || 0))}</small></div></li>`; }).join("");
+    return `<div class="kpis k3">${kpi("Notas guardadas", milhar(lista.length), G.mesLista.notas ? "no mês escolhido" : "no total")}${kpi("Valor das notas", din(tot))}${kpi("Fornecedores com nota", milhar(new Set(lista.map(n => n.fornecedor_id).filter(Boolean)).size))}</div>
+      <p class="nota">Guarde aqui as notas fiscais em foto (JPG ou PNG) ou PDF, até 15 MB cada. Os arquivos ficam numa pasta privada: só quem entra na gestão consegue abrir.</p>
+      <div class="busca">${seletorMes(G.notas, "notas")}<input type="search" data-busca="notas" placeholder="Buscar número, fornecedor ou descrição" value="${esc(G.busca.notas)}" aria-label="Buscar nota"></div>
+      <ul class="regs">${itens || `<li class="vazio-g">${G.notas.length ? "Nenhuma nota encontrada." : "Nenhuma nota anexada ainda. Toque em “Anexar nota fiscal”."}</li>`}</ul>`;
+  }
+  function formNota(id) {
+    const n0 = id ? G.notas.find(n => n.id === id) : null;
+    abrirForm({
+      titulo: n0 ? "Nota fiscal" : "Anexar nota fiscal",
+      extra: n0 ? `<div class="nota-arq"><div class="nota-prev" id="notaPrev">${ehPdf(n0) ? '<span class="sinal doc">PDF</span>' : '<span class="carregando">Carregando…</span>'}</div>
+        <div class="nota-info"><b>${esc(n0.arquivo_nome || "arquivo")}</b><span>${esc(tamanho(n0.arquivo_tamanho || 0))}</span>
+        <a class="btn sm primary" id="notaAbrir" target="_blank" rel="noopener" aria-disabled="true">Abrir nota</a></div></div>` : "",
+      campos: [
+        { k: "arquivo", rotulo: n0 ? "Trocar arquivo" : "Arquivo da nota", tipo: "arquivo", obrig: !n0, aceita: ".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf", botao: n0 ? "Escolher outro" : "Escolher foto ou PDF", dica: "JPG, JPEG, PNG ou PDF, até 15 MB. No celular dá para tirar a foto na hora." },
+        { k: "data", rotulo: "Data da nota", tipo: "data", obrig: true, meia: true },
+        { k: "numero", rotulo: "Número", tipo: "texto", meia: true },
+        { k: "fornecedor_id", rotulo: "Fornecedor", tipo: "lista", meia: true, opcoes: () => G.forn.map(f => ({ v: f.id, t: f.nome })), vazio: "Não informado" },
+        { k: "valor", rotulo: "Valor", tipo: "dinheiro", meia: true },
+        { k: "descricao", rotulo: "Descrição", tipo: "area" }
+      ],
+      vals: n0 ? Object.assign({}, n0, { arquivo: null }) : { data: hoje() },
+      salvar: async v => {
+        const f = v.arquivo;
+        let arq = null;
+        if (f) {
+          const tipo = tipoNota(f);
+          if (!tipo) throw Object.assign(new Error("tipo"), { aviso: "Use um arquivo JPG, JPEG, PNG ou PDF." });
+          if (f.size > NOTA_MAX) throw Object.assign(new Error("tamanho"), { aviso: `O arquivo tem ${tamanho(f.size)}. O limite é 15 MB.` });
+          const caminho = `${(v.data || hoje()).slice(0, 4)}/${uid()}.${NOTA_TIPOS[tipo]}`;
+          const { error } = await sb.storage.from("notas").upload(caminho, f, { contentType: tipo, upsert: false });
+          if (error) throw error;
+          arq = { arquivo: caminho, arquivo_nome: f.name, arquivo_tipo: tipo, arquivo_tamanho: f.size };
+        }
+        const linha = Object.assign({ data: v.data, numero: v.numero || "", fornecedor_id: v.fornecedor_id || null, valor: v.valor, descricao: v.descricao || "" }, arq || {});
+        try { await gravar("notas_fiscais", id, linha); }
+        catch (e) { if (arq) await sb.storage.from("notas").remove([arq.arquivo]); throw e; }
+        if (arq && n0) await sb.storage.from("notas").remove([n0.arquivo]);   // arquivo antigo trocado
+      },
+      textoSalvar: n0 ? "Salvar" : "Anexar nota", textoOk: n0 ? "Nota atualizada" : "Nota anexada",
+      excluir: n0 ? async () => { await apagar("notas_fiscais", id); await sb.storage.from("notas").remove([n0.arquivo]); } : null,
+      textoExcluir: "Excluir esta nota fiscal e o arquivo?",
+      aoAbrir: () => {
+        if (!n0) return;
+        linkNota(n0).then(url => {
+          const a = $("#notaAbrir"); if (!a) return;
+          a.href = url; a.removeAttribute("aria-disabled");
+          if (!ehPdf(n0)) { const pv = $("#notaPrev"); if (pv) pv.innerHTML = `<a href="${esc(url)}" target="_blank" rel="noopener"><img src="${esc(url)}" alt="Prévia da nota"></a>`; }
+        }).catch(e => { console.error(e); const pv = $("#notaPrev"); if (pv) pv.innerHTML = '<span class="falta">Não foi possível abrir o arquivo.</span>'; });
+      }
+    });
+  }
+
   /* ---------- AJUSTES (listas + importar planilha) ---------- */
   function abrirAjustesG() {
     const L = G.cfg.listas;
@@ -856,7 +951,7 @@
   function desenhar() {
     if (!G.cfg) return;
     $("#abasG").innerHTML = ABAS.map(a => `<button type="button" role="tab" aria-selected="${a.id === G.aba}" data-aba="${a.id}">${a.nome}</button>`).join("");
-    const fn = { resumo: abaResumo, estoque: abaEstoque, vendas: abaVendas, perdas: abaPerdas, financeiro: abaFinanceiro, precos: abaPrecos, fornecedores: abaFornecedores, trafego: abaTrafego }[G.aba];
+    const fn = { resumo: abaResumo, estoque: abaEstoque, vendas: abaVendas, perdas: abaPerdas, financeiro: abaFinanceiro, precos: abaPrecos, fornecedores: abaFornecedores, trafego: abaTrafego, notas: abaNotas }[G.aba];
     const foco = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.busca;
     $("#conteudo").innerHTML = `<div class="summary"><h2>${esc(ABAS.find(a => a.id === G.aba).nome)}</h2></div>` + fn();
     if (foco) { const el = document.querySelector(`[data-busca="${foco}"]`); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }
@@ -875,6 +970,7 @@
   abrirPor("[data-forn]", el => formForn(el.dataset.forn));
   abrirPor("[data-traf]", el => formTraf(el.dataset.traf));
   abrirPor("[data-fase]", el => formFase(+el.dataset.fase));
+  abrirPor("[data-nota]", el => formNota(el.dataset.nota));
   abrirPor("[data-fest]", el => { G.fEst = el.dataset.fest; desenhar(); });
   abrirPor("[data-ir]", el => { G.aba = el.dataset.ir; G.fEst = "baixo"; desenhar(); window.scrollTo(0, 0); });
   abrirPor("[data-rmtaxa]", el => { const k = el.dataset.rmtaxa; if (k === "Pix" || Object.keys(G.cfg.taxas).length < 2) return; const t = lerPrecos(); delete t.taxas[k]; if (t.formaPreco === k) t.formaPreco = Object.keys(t.taxas)[0]; Object.assign(G.cfg, t); desenhar(); toast("Removida. Toque em Salvar parâmetros para confirmar."); });

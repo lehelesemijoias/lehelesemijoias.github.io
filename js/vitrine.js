@@ -71,6 +71,17 @@
   const img = (src, x, y, w, h, cls = "im", extra = "") => `<img class="${cls}" src="${esc(src)}" alt="" style="${box(x, y, w, h)};${extra}" loading="eager" decoding="async">`;
   const selo = (x, y) => `<div class="pill t b" style="${box(x, y, 58, 13)};background:${C.deep};color:${C.paper};font-size:${U(6)};letter-spacing:${U(1.6)};--sw:${U(0.25)};z-index:2">NOVIDADE</div>`;
 
+  // botão de navegação em pílula (passar página). lado: "esq" | "dir" | "centro"; cheio = dourado preenchido
+  const NAV_S = 10, NAV_CS = 2, NAV_H = 30, NAV_PAD = 15;
+  function botao(rotulo, x, yMeio, { lado = "esq", href, nav = null, cheio = false, label = "" } = {}) {
+    const w = largura(rotulo, NAV_S, NAV_CS) + NAV_PAD * 2;
+    const x0 = lado === "dir" ? x - w : lado === "centro" ? (PW - w) / 2 : x, y0 = yMeio - NAV_H / 2;
+    let h = rect(x0, y0, w, NAV_H, cheio ? { fill: C.deep, r: NAV_H / 2 } : { fill: C.paper, stroke: C.deep, lw: 0.9, r: NAV_H / 2 });
+    h += T(rotulo, x0 + NAV_PAD, yMeio + 0.36 * NAV_S, { size: NAV_S, color: cheio ? C.paper : C.ink, cs: NAV_CS, bold: true });
+    h += link(x0 - 4, y0 - 6, w + 8, NAV_H + 12, href, { nav, label: label || rotulo.replace(/[‹›]/g, "").trim() });
+    return { h, x0, w };
+  }
+
   /* ---------- dados ---------- */
   const ativas = () => ordenar(V.cfg, V.pecas.filter(p => !p.arquivada));
   const daLinha = id => ativas().filter(p => p.linha === id);
@@ -79,7 +90,7 @@
   const thumbDe = p => { const f = p.fotos[0]; return f ? fotoURL(f.thumb || f.full) : ""; };
 
   /* ---------- plano do índice (mesmo do PDF) ---------- */
-  const M = 31.5, GAP = 14, colW = (PW - 2 * M - GAP) / 2, cardH = colW + 46, ROWGAP = 16, CATH = 30, LIM = PH - 48;
+  const M = 31.5, GAP = 14, colW = (PW - 2 * M - GAP) / 2, cardH = colW + 46, ROWGAP = 16, CATH = 30, LIM = PH - 60;
   function planoIndice(lista) {
     const usarCats = lista.some(p => catOf(p));
     const cats = []; for (const p of lista) { const c = catOf(p) || "Outras peças"; if (!cats.includes(c)) cats.push(c); }
@@ -114,16 +125,17 @@
     h += T(`${lista.length} ${lista.length === 1 ? "PEÇA" : "PEÇAS"} SELECIONADAS`, PW / 2, yc + 15, { size: 7, color: C.soft, cs: 2.5, align: "center" });
     if (novas.length && novas.length < lista.length) {
       const s = `${novas.length} ${novas.length === 1 ? "NOVIDADE" : "NOVIDADES"} PARA VOCÊ  ›`;
-      const w = largura(s, 8.5, 2) + 34, x = (PW - w) / 2, yb = PH - 146;
+      const w = largura(s, 8.5, 2) + 34, x = (PW - w) / 2, yb = PH - 154;
       h += rect(x, yb, w, 26, { fill: C.deep, r: 13 });
       h += estrela(x + 14, yb + 13, 4.5, C.paper);
       h += T(s, x + 24, yb + 16.5, { size: 8.5, color: C.paper, cs: 2, bold: true });
       h += link(x, yb, w, 26, "#novidades-1", { label: "Ver novidades" });
     }
-    const bw = 214, bx = (PW - bw) / 2, by = PH - 102;
-    h += rect(bx, by, bw, 38, { stroke: C.deep, lw: 0.9, r: 19 });
-    h += T("ENTRAR NA VITRINE  ›", PW / 2, by + 23, { size: 10, color: C.ink, cs: 2.6, align: "center", bold: true });
-    h += link(bx, by, bw, 38, "#linhas", { label: "Entrar na vitrine", nav: "next" });
+    // botão principal: dourado cheio, maior, com um brilho suave pulsando
+    const bw = 262, bh = 48, bx = (PW - bw) / 2, by = PH - 112;
+    h += `<div class="cta" style="${box(bx, by, bw, bh)};background:${C.deep};border-radius:${U(bh / 2)};pointer-events:none"></div>`;
+    h += T("ENTRAR NA VITRINE  ›", PW / 2, by + bh / 2 + 0.36 * 12.5, { size: 12.5, color: C.paper, cs: 3, align: "center", bold: true });
+    h += link(bx, by, bw, bh, "#linhas", { label: "Entrar na vitrine", nav: "next" });
     return { bg: C.taupe, html: h };
   }
 
@@ -156,9 +168,9 @@
       h += T(itens.length ? `${itens.length} ${itens.length === 1 ? "PEÇA" : "PEÇAS"}  ›` : "EM BREVE", PW / 2, y + fotoH + 50, { size: 8, color: itens.length ? C.deep : C.soft, cs: 3, align: "center", bold: !!itens.length });
       if (itens.length) h += link(cx, y, cw, alt, `#${l.id}-1`, { label: `Ver ${l.nome}` });
     });
-    const FY = PH - 36, nav = { size: 9, color: C.deep, cs: 2, bold: true };
-    h += T("‹  CAPA", M, FY, { ...nav, href: "#capa", nav: "prev" });
-    if (cfg.whatsapp || cfg.instagram) h += T("ATENDIMENTO  ›", PW - M, FY, { ...nav, align: "right", href: "#atendimento" });
+    const FY = PH - 38;
+    h += botao("‹  CAPA", M, FY, { href: "#capa", nav: "prev" }).h;
+    if (cfg.whatsapp || cfg.instagram) h += botao("ATENDIMENTO  ›", PW - M, FY, { lado: "dir", href: "#atendimento" }).h;
     return { bg: C.cream, html: h };
   }
 
@@ -202,9 +214,9 @@
       if (p.codigo) h += `<div class="t" style="left:${U(it.x)};width:${U(colW)};text-align:center;top:${U(it.y + colW + 16 + nl.length * 13 + 1 - 0.91 * 6.5)};font-size:${U(6.5)};color:${C.deep};letter-spacing:${U(1.8)}">${esc(p.codigo.toUpperCase())}</div>`;
       h += link(it.x, it.y, colW, cardH - 4, `#peca-${p.id}`, { label: p.nome });
     }
-    const FY = PH - 36, nav = { size: 9, color: C.deep, cs: 2, bold: true };
+    const FY = PH - 38;
     const esq = m === 0 ? (modo === "novidades" ? ["‹  CAPA", "#capa"] : ["‹  LINHAS", "#linhas"]) : ["‹  ANTERIOR", base + m];
-    h += T(esq[0], M, FY, { ...nav, href: esq[1], nav: "prev" });
+    const bE = botao(esq[0], M, FY, { href: esq[1], nav: "prev" }); h += bE.h;
     const temContato = !!(cfg.whatsapp || cfg.instagram);
     let dir = null;
     const outra = modo === "novidades" ? null : LH.LINHAS.find(l => l.id !== modo && daLinha(l.id).length);
@@ -212,8 +224,11 @@
     else if (modo === "novidades") dir = ["VITRINE COMPLETA  ›", "#linhas"];
     else if (outra) dir = [outra.nome.toUpperCase() + "  ›", `#${outra.id}-1`];
     else if (temContato) dir = ["ATENDIMENTO  ›", "#atendimento"];
-    if (dir) h += T(dir[0], PW - M, FY, { ...nav, align: "right", href: dir[1], nav: "next" });
-    if (pags.length > 1) h += T(`${m + 1} / ${pags.length}`, PW / 2, FY, { size: 8, color: C.soft, cs: 1.5, align: "center" });
+    let bD = null;
+    if (dir) { bD = botao(dir[0], PW - M, FY, { lado: "dir", href: dir[1], nav: "next", cheio: true }); h += bD.h; }
+    // número da página só se couber entre os dois botões
+    const num = `${m + 1} / ${pags.length}`, nw = largura(num, 8, 1.5) / 2 + 6;
+    if (pags.length > 1 && bE.x0 + bE.w < PW / 2 - nw && (!bD || bD.x0 > PW / 2 + nw)) h += T(num, PW / 2, FY + 3, { size: 8, color: C.soft, cs: 1.5, align: "center" });
     return { bg: C.cream, html: h };
   }
 
@@ -227,10 +242,13 @@
     h += T("‹  ÍNDICE", 30, 44, { size: 11.5, color: C.deep, cs: 2.2, bold: true, href: `#${p.linha}-${onde.get(p.id) || 1}` });
     h += T(`${String(idx + 1).padStart(2, "0")} / ${String(lista.length).padStart(2, "0")}`, PW / 2, 44, { size: 7.5, color: C.soft, cs: 1.5, align: "center" });
     const ant = lista[idx - 1], seg = lista[idx + 1];
-    h += T("›", PW - 30, 49, { size: 30, color: seg ? C.deep : C.taupe, align: "right", bold: !!seg });
-    h += T("‹", PW - 76, 49, { size: 30, color: ant ? C.deep : C.taupe, align: "right", bold: !!ant });
-    if (seg) h += link(PW - 58, 20, 42, 38, `#peca-${seg.id}`, { label: "Próxima peça", nav: "next" });
-    if (ant) h += link(PW - 104, 20, 42, 38, `#peca-${ant.id}`, { label: "Peça anterior", nav: "prev" });
+    // setas em círculos: dourado cheio quando dá para ir, apagado quando não dá
+    const D = 34, cy = 40, xS = PW - 28 - D, xA = xS - 10 - D;
+    const seta = (x, ativo, ch) => rect(x, cy - D / 2, D, D, ativo ? { fill: C.deep, r: D / 2 } : { stroke: C.taupe, lw: 0.8, r: D / 2 }) +
+      `<svg viewBox="0 0 24 24" style="${box(x + D * 0.27, cy - D * 0.23, D * 0.46, D * 0.46)};pointer-events:none" fill="none" stroke="${ativo ? C.paper : C.taupe}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="${ch === ">" ? "M9 5l7 7-7 7" : "M15 5l-7 7 7 7"}"/></svg>`;
+    h += seta(xA, !!ant, "<") + seta(xS, !!seg, ">");
+    if (seg) h += link(xS - 4, cy - D / 2 - 4, D + 8, D + 8, `#peca-${seg.id}`, { label: "Próxima peça", nav: "next" });
+    if (ant) h += link(xA - 4, cy - D / 2 - 4, D + 8, D + 8, `#peca-${ant.id}`, { label: "Peça anterior", nav: "prev" });
 
     const DESC_W = 300, DESC_S = 10, DESC_LH = 14.5;
     const descLs = p.descricao ? linhas(p.descricao, DESC_S, DESC_W) : [];
@@ -309,9 +327,9 @@
     h += img(fotoURL(f.full), gx, gy, gw, gh, "ct");
     h += `<div class="fr-foto" data-auto="${conhecido ? 0 : 1}" style="${box(gx - 5, gy - 5, gw + 10, gh + 10)};border:max(${U(0.6)},.5px) solid ${C.cream};pointer-events:none"></div>`;
     const prev = k === 2 ? `#peca-${p.id}` : `#peca-${p.id}-foto-${k - 1}`;
-    h += T("‹  ANTERIOR", 30, PH - 42, { size: 9, color: C.ink, cs: 2, bold: true, href: prev, nav: "prev" });
-    if (k < p.fotos.length) h += T("PRÓXIMA  ›", PW - 30, PH - 42, { size: 9, color: C.ink, cs: 2, align: "right", bold: true, href: `#peca-${p.id}-foto-${k + 1}`, nav: "next" });
-    else h += T("VOLTAR À PEÇA  ›", PW - 30, PH - 42, { size: 9, color: C.ink, cs: 2, align: "right", bold: true, href: `#peca-${p.id}`, nav: "next" });
+    h += botao("‹  ANTERIOR", 30, PH - 46, { href: prev, nav: "prev" }).h;
+    if (k < p.fotos.length) h += botao("PRÓXIMA  ›", PW - 30, PH - 46, { lado: "dir", href: `#peca-${p.id}-foto-${k + 1}`, nav: "next", cheio: true }).h;
+    else h += botao("VOLTAR À PEÇA  ›", PW - 30, PH - 46, { lado: "dir", href: `#peca-${p.id}`, nav: "next", cheio: true }).h;
     return { bg: C.taupe, html: h };
   }
 
@@ -333,7 +351,7 @@
       h += T("@" + hd, PW / 2, yk + 24, { size: 17, color: C.ink, align: "center", href: "https://instagram.com/" + encodeURIComponent(hd), ext: true });
     }
     h += T("Para a mais bela das belas.", PW / 2, PH - 110, { size: 13, color: C.deep, align: "center" });
-    h += T("‹  VOLTAR À VITRINE", PW / 2, PH - 60, { size: 9, color: C.ink, cs: 2.2, align: "center", bold: true, href: "#linhas", nav: "prev" });
+    h += botao("‹  VOLTAR À VITRINE", 0, PH - 62, { lado: "centro", href: "#linhas", nav: "prev" }).h;
     return { bg: C.taupe, html: h };
   }
 

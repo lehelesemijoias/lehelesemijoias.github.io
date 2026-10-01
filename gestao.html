@@ -385,6 +385,20 @@ select:focus{border-color:var(--gold)}
 .aviso-est{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px;margin:12px 0 0;padding:10px 14px;border:1px solid color-mix(in srgb,var(--danger) 40%,var(--line));border-radius:12px;font-size:13px;color:var(--danger);background:color-mix(in srgb,var(--danger) 6%,transparent)}
 .calc .alerta span,.calc .alerta b{color:var(--danger)}
 .tx .x.fixa{border:none}
+.arq{display:flex;align-items:center;gap:12px;border:1px dashed var(--gold);border-radius:12px;padding:10px 12px;background:var(--surface);cursor:pointer;letter-spacing:0!important;text-transform:none!important;white-space:normal!important}
+.arq-b{flex:none;border:1px solid var(--gold);border-radius:999px;padding:8px 14px;font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--ink)}
+.arq-n{min-width:0;font-size:13px;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sinal.doc{font-family:var(--body);font-size:10px;font-weight:500;letter-spacing:.08em;color:var(--gold-deep);border-color:var(--gold);border-radius:10px}
+.nota-arq{display:grid;grid-template-columns:96px minmax(0,1fr);gap:14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px}
+.nota-prev{width:96px;height:96px;border-radius:8px;background:var(--surface-2);display:grid;place-items:center;overflow:hidden}
+.nota-prev img{width:96px;height:96px;object-fit:cover;display:block}
+.nota-prev .sinal.doc{width:56px;height:56px;font-size:13px}
+.nota-prev .carregando{font-size:11px;color:var(--ink-soft)}
+.nota-info{display:grid;gap:4px;min-width:0}
+.nota-info b{font-weight:500;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nota-info span{font-size:12px;color:var(--ink-soft)}
+.nota-info .btn{justify-self:start;margin-top:4px;text-decoration:none}
+.nota-info .btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
 .previa{background:var(--ink);color:var(--bg);text-align:center;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:6px 12px}
 </style>
 </head>
