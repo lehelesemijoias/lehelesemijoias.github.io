@@ -1002,6 +1002,11 @@ const ehIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.p
 const instalado = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 function b64uParaBytes(s) { s = s.replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "="; const b = atob(s), o = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) o[i] = b.charCodeAt(i); return o; }
 function nomeAparelho() { const u = navigator.userAgent; return /iPhone/.test(u) ? "iPhone" : /iPad/.test(u) ? "iPad" : /Android/.test(u) ? "Android" : /Mac/.test(u) ? "Mac" : /Windows/.test(u) ? "Windows" : "Navegador"; }
+// mensagem de erro que a função "notificar" devolveu (para mostrar o motivo real)
+async function motivoFuncao(error) {
+  try { const r = error && error.context; if (r && typeof r.json === "function") { const j = await r.clone().json(); if (j && (j.erro || j.message)) return j.erro || j.message; } } catch (e) { }
+  return error && error.message ? error.message : "";
+}
 function statusNotif(txt, cls = "") { const el = $("#nStatus"); el.textContent = txt; el.className = "notif-st " + cls; }
 async function carregarNotif() {
   if (!$("#nHora").options.length) $("#nHora").innerHTML = Array.from({ length: 24 }, (_, h) => `<option value="${h}">${String(h).padStart(2, "0")}:00</option>`).join("");
@@ -1046,7 +1051,11 @@ $("#nAtivar").onclick = async () => {
       const reg = await navigator.serviceWorker.register("sw.js");
       await navigator.serviceWorker.ready;
       const { data, error } = await sb.functions.invoke("notificar", { body: { acao: "chave" } });
-      if (error || !data || !data.chave) { console.error(error); toast("Falta publicar a função “notificar” no Supabase."); return; }
+      if (error || !data || !data.chave) {
+        const m = await motivoFuncao(error); console.error(error, m);
+        toast(/not found|404/i.test(m) ? "Falta publicar a função “notificar” no Supabase." : "Não deu para ativar: " + (m || "erro desconhecido"));
+        return;
+      }
       const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uParaBytes(data.chave) });
       const j = sub.toJSON();
       const { error: e2 } = await sb.from("push_inscricoes").upsert({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, email: S.email, aparelho: nomeAparelho() }, { onConflict: "endpoint" });
@@ -1060,8 +1069,8 @@ $("#nTeste").onclick = async () => {
   const b = $("#nTeste"); b.disabled = true;
   try {
     const { data, error } = await sb.functions.invoke("notificar", { body: { acao: "teste", endpoint: NT.insc && NT.insc.endpoint } });
-    if (error) throw error;
-    toast(data && data.enviados ? "Teste enviado. Deve chegar em instantes." : "Não chegou ao aparelho. Desligue e ative de novo.");
+    if (error) { toast("Não foi possível enviar o teste: " + ((await motivoFuncao(error)) || "erro desconhecido")); return; }
+    toast(data && data.enviados ? "Teste enviado. Deve chegar em instantes." : "Não chegou ao aparelho" + (data && data.falhas && data.falhas.length ? " (código " + data.falhas.join(", ") + ")" : "") + ". Desligue e ative de novo.");
   } catch (e) { console.error(e); toast("Não foi possível enviar o teste."); }
   finally { b.disabled = false; }
 };
