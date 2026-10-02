@@ -12,5 +12,5 @@ window.LEHELE = {
   SUPABASE_ANON_KEY: "sb_publishable_6k0oZJu3hwu_fJhptqwLaw_3FQ0CI9e",
 
   // Endereço da vitrine (com a barra no final)
-  SITE_URL: "https://lehelesemijoias.github.io/"
+  SITE_URL: "https://www.lehele.com.br/"
 };

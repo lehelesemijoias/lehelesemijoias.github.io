@@ -661,11 +661,19 @@
       return tem(localStorage) || tem(sessionStorage);
     } catch (e) { return false; }
   }
-  function registrar(tipo, pecaId) {
+  function registrar(tipo, pecaId, detalhe) {
     if (!sb || ehDaLoja()) return;
-    const chave = "lehele-reg-" + tipo + "-" + (pecaId || "");
-    try { const t = +sessionStorage.getItem(chave) || 0; if (Date.now() - t < 30 * 60e3) return; sessionStorage.setItem(chave, String(Date.now())); } catch (e) { }
-    try { sb.from("acessos").insert({ tipo, visitante: visitante(), peca_id: pecaId || null }).then(() => { }, () => { }); } catch (e) { }
+    // não repete a mesma anotação (pedido: 1 minuto; o resto: 30 minutos)
+    const chave = "lehele-reg-" + tipo + "-" + (pecaId || "") + (tipo === "pedido" ? "-" + JSON.stringify(detalhe || {}) : "");
+    const janela = tipo === "pedido" ? 60e3 : 30 * 60e3;
+    try { const t = +sessionStorage.getItem(chave) || 0; if (Date.now() - t < janela) return; sessionStorage.setItem(chave, String(Date.now())); } catch (e) { }
+    const linha = { tipo, visitante: visitante(), peca_id: pecaId || null };
+    const enviar = l => sb.from("acessos").insert(l).then(r => r, () => ({ error: true }));
+    try {
+      if (!detalhe) { enviar(linha); return; }
+      // com detalhe (pedido / origem); se o banco ainda não tiver a coluna, anota sem ele
+      enviar(Object.assign({}, linha, { detalhe })).then(r => { if (r && r.error && tipo !== "pedido") enviar(linha); });
+    } catch (e) { }
   }
   app.addEventListener("click", e => {
     const a = e.target.closest("[data-zap]"); if (a) registrar("zap", a.getAttribute("data-zap"));
@@ -674,7 +682,12 @@
     const d = b.dataset;
     if (d.zoom) { abrirZoom(d.zoom); return; }
     if (d.share) { compartilhar(d.share); return; }
-    if (d.pedido) { sacola().forEach(i => registrar("zap", i.id)); return; }
+    if (d.pedido) {
+      const l = sacola(), total = l.reduce((s, i) => { const p = ativas().find(x => x.id === i.id); return s + (p && p.valor ? p.valor * i.q : 0); }, 0);
+      registrar("pedido", null, { itens: l.reduce((s, i) => s + i.q, 0), total });
+      l.forEach(i => registrar("zap", i.id, { origem: "sacola" }));
+      return;
+    }
     if (d.add) { mudarSacola(d.add, 1); const n = qtdSacola(); avisar(`Adicionada à sacola · ${n} ${n === 1 ? "peça" : "peças"}`); }
     else if (d.mais) mudarSacola(d.mais, 1);
     else if (d.menos) mudarSacola(d.menos, -1);
