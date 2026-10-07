@@ -368,14 +368,14 @@
       h += T(bt, PW / 2, ty + 2, { size: bs, color: C.ink, cs: 2, align: "center" }); ty += 17;
     }
     ty += 12;
-    const limite = zap ? PH - 118 : PH - 44;
+    const limite = zap ? PH - 132 : PH - 44;
     const cabem = Math.max(0, Math.floor((limite - ty) / DESC_LH) + 1);
     if (descLs.length) {
       const ls = descLs.length > cabem ? linhas(p.descricao, DESC_S, DESC_W, cabem) : descLs;
       ls.forEach((l, i) => { h += T(l, PW / 2, ty + i * DESC_LH, { size: DESC_S, color: C.ink, align: "center" }); });
     }
     if (zap) {
-      const w = 250, hh = 42, x = (PW - w) / 2, yb = PH - 104, dentro = naSacola(p.id);
+      const w = 250, hh = 42, x = (PW - w) / 2, yb = PH - 118, dentro = naSacola(p.id);
       h += `<div class="${dentro ? "" : "cta"}" style="${box(x, yb, w, hh)};background:${dentro ? C.paper : C.deep};${dentro ? `border:max(${U(0.9)},.5px) solid ${C.deep};` : ""}border-radius:${U(hh / 2)};pointer-events:none"></div>`;
       if (dentro) {
         h += T("✓  NA SACOLA · VER SACOLA  ›", PW / 2, yb + hh / 2 + 3.8, { size: 10, color: C.ink, cs: 2, align: "center", bold: true });
@@ -386,11 +386,16 @@
         h += `<button type="button" class="hit" style="${box(x, yb, w, hh)}" data-add="${esc(p.id)}" aria-label="Adicionar à sacola"></button>`;
       }
       // linha de baixo: pedir só esta peça (e ver a sacola, se já tiver peças)
-      const n = qtdSacola(), yl = yb + hh + 22;
+      const n = qtdSacola(), yl = yb + hh + 20;
       const a = "PEDIR SÓ ESTA PELO WHATSAPP  ›", b = `VER SACOLA (${n})  ›`;
       const wa = largura(a, 7.5, 1.6), wb = n && !dentro ? largura(b, 7.5, 1.6) : 0, gapL = wb ? 26 : 0, x0 = (PW - wa - wb - gapL) / 2;
       if (wb) { h += T(b, x0, yl, { size: 7.5, color: C.deep, cs: 1.6, bold: true, href: "#sacola" }); h += T("·", x0 + wb + gapL / 2 - 2, yl, { size: 7.5, color: C.soft }); }
       h += `<a class="t b nav" style="left:${U(x0 + wb + gapL)};top:${U(yl - 0.91 * 7.5)};font-size:${U(7.5)};color:${C.ink};letter-spacing:${U(1.6)};--sw:${U(0.3)}" href="${esc(zap)}" target="_blank" rel="noopener" data-zap="${esc(p.id)}">${esc(a)}</a>`;
+      // enviar a peça para uma amiga
+      const sTxt = "COMPARTILHE ESSA PEÇA", sw = largura(sTxt, 7.5, 1.6), ys = yl + 22, xs = (PW - sw - 16) / 2;
+      h += `<svg viewBox="0 0 24 24" style="${box(xs, ys - 9.5, 11, 11)};pointer-events:none" fill="none" stroke="${C.deep}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>`;
+      h += T(sTxt, xs + 16, ys, { size: 7.5, color: C.deep, cs: 1.6, bold: true });
+      h += `<button type="button" class="hit" style="${box(xs - 8, ys - 16, sw + 32, 24)}" data-share="${esc(p.id)}" aria-label="Compartilhe essa peça"></button>`;
     }
     // pré-carrega a próxima peça
     if (seg && seg.fotos[0]) { const i = new Image(); i.src = fotoURL(seg.fotos[0].full); }
@@ -502,7 +507,12 @@
       `Total: ${brl(total)}${semPreco ? " + peças sob consulta" : ""}`,
       ...(pg && pg.pix != null ? [`No Pix: ${brl(pg.pix)} (${LH.pctTxt(pg.pixPct)} de desconto)`] : []),
       ...(pg && pg.parcelas ? [`Ou ${pg.parcelas}x de ${brl(pg.parcela)} sem juros`] : [])].join("\n");
-    const zap = whatsLink(cfg.whatsapp, msg);
+    // código do pedido + link para a loja abrir a sacola no painel
+    const cod = codigoPedido(l);
+    const base = String((LH.CFG && LH.CFG.SITE_URL) || new URL(".", location.href).href).replace(/\/?$/, "/");
+    const linhasPedido = `Pedido ${cod}\nLink do pedido (para a loja): ${base}painel.html#pedido-${cod}`;
+    V.pedidoAtual = { cod, itens: l.map(i => ({ id: i.id, q: i.q })), detalhe: { itens: n, total }, msg, linhasPedido, ids: l.map(i => i.id) };
+    const zap = whatsLink(cfg.whatsapp, msg + "\n\n" + linhasPedido);
     const w = 286, hh = 44, x = (PW - w) / 2, yb = PH - 110;
     h += `<div class="cta" style="${box(x, yb, w, hh)};background:${C.deep};border-radius:${U(hh / 2)};pointer-events:none"></div>`;
     h += T("ENVIAR PEDIDO NO WHATSAPP  ›", PW / 2, yb + hh / 2 + 4, { size: 10.5, color: C.paper, cs: 2.2, align: "center", bold: true });
@@ -570,7 +580,7 @@
   async function compartilhar(id) {
     const p = ativas().find(x => x.id === id); if (!p) return;
     const url = location.href.split("#")[0] + "#peca-" + id;
-    const texto = `${p.nome}${p.valor != null ? " — " + brl(p.valor) : ""}\nLe Helê Semijoias: ${url}`;
+    const texto = `Olha que linda esta peça da Le Helê ✨\n${p.nome}${p.valor != null ? " — " + brl(p.valor) : ""}\n${url}`;
     const f = fotoPronta.get(id);
     try {
       if (f && navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], text: texto }); return; }
@@ -675,6 +685,91 @@
       enviar(Object.assign({}, linha, { detalhe })).then(r => { if (r && r.error && tipo !== "pedido") enviar(linha); });
     } catch (e) { }
   }
+  /* ---------- pedido da sacolinha (fica salvo para a loja abrir no painel) ---------- */
+  const ALF_PED = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";   // sem 0/O e 1/I para não confundir
+  function novoCodigo() {
+    const r = new Uint8Array(6);
+    try { crypto.getRandomValues(r); } catch (e) { for (let i = 0; i < 6; i++) r[i] = Math.floor(Math.random() * 256); }
+    let c = ALF_PED[r[0] % 24];   // começa sempre com letra
+    for (let i = 1; i < 6; i++) c += ALF_PED[r[i] % 32];
+    return c;
+  }
+  // o mesmo código enquanto a sacola não muda (enviar duas vezes não cria dois pedidos)
+  let pedMem = null;   // reserva caso o aparelho não deixe guardar
+  function codigoPedido(l) {
+    const sig = JSON.stringify(l.map(i => [i.id, i.q]));
+    let o = null;
+    try { o = JSON.parse(localStorage.getItem("lehele-pedido") || "null"); } catch (e) { }
+    if (!o) o = pedMem;
+    // código novo só depois que um pedido foi enviado e a sacola mudou (ou passou meia hora)
+    if (!o || !o.cod || (o.usado && (o.sig !== sig || Date.now() - o.usado > 30 * 60e3))) o = { sig, cod: novoCodigo() };
+    else o.sig = sig;
+    try { localStorage.setItem("lehele-pedido", JSON.stringify(o)); } catch (e) { }
+    pedMem = o;
+    return o.cod;
+  }
+  function salvarPedido(cli) {
+    const P = V.pedidoAtual;
+    if (!sb || !P) return;
+    if (pedMem && pedMem.cod === P.cod) pedMem.usado = Date.now();
+    try { const o = JSON.parse(localStorage.getItem("lehele-pedido") || "null"); if (o && o.cod === P.cod) { o.usado = Date.now(); localStorage.setItem("lehele-pedido", JSON.stringify(o)); } } catch (e) { }
+    try {
+      const base = { p_codigo: P.cod, p_visitante: visitante(), p_itens: P.itens };
+      const antigo = () => Promise.resolve(sb.rpc("criar_pedido", base)).then(r => { if (r && r.error) registrar("pedido", null, P.detalhe); }, () => registrar("pedido", null, P.detalhe));
+      const args = cli ? Object.assign({}, base, { p_nome: cli.nome, p_whatsapp: cli.whats, p_cpf: cli.cpf || null }) : base;
+      Promise.resolve(sb.rpc("criar_pedido", args)).then(r => {
+        // banco ainda sem clientes (ou sem pedidos): tenta do jeito anterior
+        if (r && r.error) { if (cli) antigo(); else registrar("pedido", null, P.detalhe); }
+      }, () => cli ? antigo() : registrar("pedido", null, P.detalhe));
+    } catch (e) { }
+  }
+  /* ---------- finalizar pedido: nome e WhatsApp obrigatórios, CPF opcional ---------- */
+  function abrirFinalizar() {
+    const P = V.pedidoAtual; if (!P || document.querySelector(".fin")) return;
+    let salvo = {}; try { salvo = JSON.parse(localStorage.getItem("lehele-cliente") || "{}") || {}; } catch (e) { }
+    const ov = document.createElement("div");
+    ov.className = "fin"; ov.setAttribute("role", "dialog"); ov.setAttribute("aria-modal", "true"); ov.setAttribute("aria-labelledby", "finT");
+    ov.innerHTML = `<form class="fin-c" novalidate>
+      <h2 id="finT">Finalizar pedido</h2>
+      <p class="fin-sub">Seus dados para a Le Helê preparar o pedido</p>
+      <label class="fin-l"><span>Nome <b>*</b></span><input name="nome" autocomplete="name" maxlength="80" enterkeyhint="next" value="${esc(salvo.nome || "")}"><small></small></label>
+      <label class="fin-l"><span>WhatsApp <b>*</b></span><input name="whats" type="tel" inputmode="tel" autocomplete="tel" placeholder="(00) 00000-0000" enterkeyhint="next" value="${esc(salvo.whats ? LH.fmtWhats(salvo.whats) : "")}"><small></small></label>
+      <label class="fin-l"><span>CPF <i>(opcional)</i></span><input name="cpf" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" enterkeyhint="send"><small></small></label>
+      <button type="submit" class="fin-ok">ENVIAR PEDIDO NO WHATSAPP  ›</button>
+      <button type="button" class="fin-volta">Voltar para a sacola</button>
+      <p class="fin-lgpd">Seus dados ficam só com a Le Helê, para atender seus pedidos e lembrar das peças de que você gostou. Não compartilhamos com ninguém. Para apagar seu cadastro, é só pedir no WhatsApp.</p>
+    </form>`;
+    document.body.appendChild(ov);
+    const f = ov.querySelector("form"), campo = n => f.elements[n];
+    const erro = (n, msg) => { const el = campo(n); el.setAttribute("aria-invalid", msg ? "true" : "false"); el.parentNode.querySelector("small").textContent = msg || ""; };
+    const fechar = () => { ov.remove(); document.removeEventListener("keydown", esc_); };
+    const esc_ = e => { if (e.key === "Escape") fechar(); };
+    document.addEventListener("keydown", esc_);
+    ov.addEventListener("click", e => { if (e.target === ov) fechar(); });
+    f.querySelector(".fin-volta").onclick = fechar;
+    campo("whats").addEventListener("input", e => { const el = e.target; el.value = LH.fmtWhats(el.value); erro("whats", ""); });
+    campo("cpf").addEventListener("input", e => { const el = e.target; el.value = LH.fmtCPF(el.value); erro("cpf", ""); });
+    campo("nome").addEventListener("input", () => erro("nome", ""));
+    f.addEventListener("submit", e => {
+      e.preventDefault();
+      const nome = campo("nome").value.trim().replace(/\s+/g, " "), whats = LH.whatsNormal(campo("whats").value), cpfD = LH.soDig(campo("cpf").value);
+      let primeiro = null;
+      const marca = (n, msg) => { erro(n, msg); if (msg && !primeiro) primeiro = n; };
+      marca("nome", nome.length < 2 || !/[A-Za-zÀ-ÿ]/.test(nome) ? "Digite seu nome." : "");
+      marca("whats", !whats ? "Digite um WhatsApp com DDD, ex.: (79) 99999-0000." : "");
+      marca("cpf", cpfD && !LH.cpfValido(cpfD) ? "Este CPF não é válido. Confira os números ou deixe em branco." : "");
+      if (primeiro) { campo(primeiro).focus(); return; }
+      try { localStorage.setItem("lehele-cliente", JSON.stringify({ nome, whats })); } catch (x) { }
+      salvarPedido({ nome, whats, cpf: cpfD || null });
+      P.ids.forEach(id => registrar("zap", id, { origem: "sacola" }));
+      const url = whatsLink(V.cfg.whatsapp, `${P.msg}\n\nCliente: ${nome}\n${P.linhasPedido}`);
+      const w = window.open(url, "_blank");
+      if (w) { try { w.opener = null; } catch (x) { } } else location.href = url;
+      fechar();
+      avisar("Pedido enviado! Continue a conversa no WhatsApp.");
+    });
+    setTimeout(() => campo(salvo.nome ? (salvo.whats ? "cpf" : "whats") : "nome").focus(), 60);
+  }
   app.addEventListener("click", e => {
     const a = e.target.closest("[data-zap]"); if (a) registrar("zap", a.getAttribute("data-zap"));
     const b = e.target.closest("button[data-add],button[data-mais],button[data-menos],button[data-tirar],button[data-esvaziar],button[data-zoom],button[data-share],a[data-pedido]");
@@ -682,12 +777,7 @@
     const d = b.dataset;
     if (d.zoom) { abrirZoom(d.zoom); return; }
     if (d.share) { compartilhar(d.share); return; }
-    if (d.pedido) {
-      const l = sacola(), total = l.reduce((s, i) => { const p = ativas().find(x => x.id === i.id); return s + (p && p.valor ? p.valor * i.q : 0); }, 0);
-      registrar("pedido", null, { itens: l.reduce((s, i) => s + i.q, 0), total });
-      l.forEach(i => registrar("zap", i.id, { origem: "sacola" }));
-      return;
-    }
+    if (d.pedido) { e.preventDefault(); abrirFinalizar(); return; }
     if (d.add) { mudarSacola(d.add, 1); const n = qtdSacola(); avisar(`Adicionada à sacola · ${n} ${n === 1 ? "peça" : "peças"}`); }
     else if (d.mais) mudarSacola(d.mais, 1);
     else if (d.menos) mudarSacola(d.menos, -1);

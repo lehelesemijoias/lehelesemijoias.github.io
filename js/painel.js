@@ -138,6 +138,9 @@ async function entrarNoPainel(session) {
     store = SupaStore(sb);
     await store.init(pecas => { S.pecas = pecas; S.ready = true; render(); }, cfg => { S.config = cfg || {}; if (S.ready) render(); });
     if (location.hash === "#acessos") mostrarAba("acessos");   // vindo da Gestão
+    else if (location.hash === "#pedidos") mostrarAba("pedidos");
+    else if (/^#pedido-/.test(location.hash)) abrirPedidoDoLink();
+    contarPedidosNovos();
   } catch (e) {
     console.error(e);
     $("#lista").innerHTML = '<div class="empty"><h3>Não foi possível carregar</h3><p class="hint">Verifique a internet e se o script do Supabase foi executado (guia, passo 2).</p></div>';
@@ -148,15 +151,17 @@ const faltaLinha = e => /linha/i.test(((e && (e.message || "")) + " " + (e && (e
 /* ---------- abas e acessos ---------- */
 const AC = { dias: 7, pedido: 0, verTodas: false };
 function mostrarAba(qual) {
-  const ac = qual === "acessos";
-  $("#abaPecas").hidden = ac; $("#abaAcessos").hidden = !ac;
-  $("#tabPecas").setAttribute("aria-selected", String(!ac)); $("#tabAcessos").setAttribute("aria-selected", String(ac));
-  $(".dock").hidden = ac;
-  document.body.style.paddingBottom = ac ? "24px" : "";
+  const abas = { pecas: ["#abaPecas", "#tabPecas"], pedidos: ["#abaPedidos", "#tabPedidos"], acessos: ["#abaAcessos", "#tabAcessos"] };
+  Object.entries(abas).forEach(([k, [sec, tab]]) => { $(sec).hidden = k !== qual; $(tab).setAttribute("aria-selected", String(k === qual)); });
+  const fora = qual !== "pecas";
+  $(".dock").hidden = fora;
+  document.body.style.paddingBottom = fora ? "24px" : "";
   window.scrollTo(0, 0);
-  if (ac) carregarAcessos();
+  if (qual === "acessos") carregarAcessos();
+  if (qual === "pedidos") carregarPedidos();
 }
 $("#tabPecas").onclick = () => mostrarAba("pecas");
+$("#tabPedidos").onclick = () => mostrarAba("pedidos");
 $("#tabAcessos").onclick = () => mostrarAba("acessos");
 $("#acAtualizar").onclick = () => carregarAcessos();
 document.querySelectorAll(".periodo button").forEach(b => b.onclick = () => {
@@ -210,6 +215,239 @@ function renderAcessos(d) {
     ${lista.length ? `<ol class="ranking">${itens}</ol>${lista.length > 10 ? `<p style="text-align:center;margin:14px 0 0"><button class="btn sm" type="button" id="acTodas">${AC.verTodas ? "Mostrar só as 10 primeiras" : `Ver todas (${lista.length})`}</button></p>` : ""}`
       : `<div class="empty"><h3>${d.visitas ? "Nenhuma peça aberta" : "Nenhuma visita"} ${periodo}</h3><p class="hint">Assim que as clientes abrirem a vitrine, os números aparecem aqui. Envie o link pelo botão “Enviar no WhatsApp” na aba Peças.</p></div>`}`;
   const t = $("#acTodas"); if (t) t.onclick = () => { AC.verTodas = !AC.verTodas; renderAcessos(d); };
+}
+
+/* ---------- pedidos da sacolinha ---------- */
+const PD = { sit: "novo", lista: [], atual: null, gcfg: null, pedido: 0, faltaSQL: false, clientes: new Map() };
+async function carregarClientesPD() {
+  try { const { data, error } = await sb.from("clientes").select("*"); if (!error && data) PD.clientes = new Map(data.map(c => [c.id, c])); } catch (e) { }
+}
+const cliDe = p => (p && p.cliente_id && PD.clientes.get(p.cliente_id)) || null;
+const FALTA_PEDIDOS = e => /pedidos|confirmar_pedido|PGRST20|42P01|42883|does not exist|schema cache|not find/i.test(((e && e.message) || "") + " " + ((e && e.code) || ""));
+const numPed = n => "Nº " + String(n).padStart(4, "0");
+const SIT_TXT = { novo: "Novo", vendido: "Vendido", cancelado: "Cancelado" };
+const dataHora = iso => { const d = new Date(iso); return isNaN(d) ? "" : `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()} às ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+const fotoPed = f => f ? LH.fotoURL(f) : "";
+const imgPed = (f, cls = "") => { const u = fotoPed(f); return u ? `<img alt="" loading="lazy" src="${esc(u)}"${cls ? ` class="${cls}"` : ""}>` : `<span class="semfoto${cls ? " " + cls : ""}"></span>`; };
+
+async function contarPedidosNovos() {
+  try {
+    const { data, error } = await sb.from("pedidos").select("id").eq("situacao", "novo");
+    const n = !error && data ? data.length : 0;
+    $("#pdBadge").hidden = !n; $("#pdBadge").textContent = n > 99 ? "99+" : String(n);
+  } catch (e) { }
+}
+async function carregarPedidos() {
+  const box = $("#pdLista"), meu = ++PD.pedido;
+  if (!box.innerHTML) box.innerHTML = '<div class="loading">CARREGANDO PEDIDOS…</div>';
+  box.style.opacity = ".55";
+  let q = sb.from("pedidos").select("*");
+  if (PD.sit) q = q.eq("situacao", PD.sit);
+  const [{ data, error }] = await Promise.all([q.order("criado_em", { ascending: false }).limit(200), carregarClientesPD()]);
+  if (meu !== PD.pedido) return;
+  box.style.opacity = "";
+  if (error) {
+    console.error(error);
+    PD.faltaSQL = FALTA_PEDIDOS(error);
+    box.innerHTML = PD.faltaSQL
+      ? '<div class="empty"><h3>Falta ligar os pedidos</h3><p class="hint">No Supabase, abra o SQL Editor, cole o conteúdo do arquivo <b>pedidos.sql</b> e toque em Run. Depois volte aqui e toque em Atualizar.</p></div>'
+      : '<div class="empty"><h3>Não foi possível carregar</h3><p class="hint">Verifique a internet e toque em Atualizar.</p></div>';
+    return;
+  }
+  PD.lista = data || [];
+  contarPedidosNovos();
+  if (!PD.lista.length) {
+    const txt = { novo: "Nenhum pedido novo", vendido: "Nenhum pedido vendido", cancelado: "Nenhum pedido cancelado", "": "Nenhum pedido ainda" }[PD.sit];
+    box.innerHTML = `<div class="empty"><h3>${txt}</h3><p class="hint">Quando uma cliente enviar a sacolinha pelo WhatsApp, o pedido aparece aqui. A mensagem dela traz o link que abre o pedido direto.</p></div>`;
+    return;
+  }
+  box.innerHTML = '<ul class="pds">' + PD.lista.map(p => {
+    const its = Array.isArray(p.itens) ? p.itens : [];
+    const fotos = its.slice(0, 3).map(i => imgPed(i.foto)).join("") + (its.length > 3 ? `<span class="mais">+${its.length - 3}</span>` : "");
+    return `<li class="pd ${esc(p.situacao)}" data-num="${p.numero}" tabindex="0" role="button" aria-label="Abrir pedido ${p.numero}">
+      <div class="pd-fotos">${fotos}</div>
+      <div class="pd-meio"><b>${numPed(p.numero)} <span class="sit ${esc(p.situacao)}">${SIT_TXT[p.situacao] || esc(p.situacao)}</span></b>
+        <small>${esc(dataHora(p.criado_em))} · ${esc(p.codigo)}</small>${cliDe(p) || p.cliente ? `<small>${esc([cliDe(p) ? cliDe(p).nome : "", p.cliente].filter(Boolean).join(" · "))}</small>` : ""}</div>
+      <div class="pd-val">${brl(p.total)}${p.sem_preco ? " +" : ""}<small>${p.qtd_pecas} ${p.qtd_pecas === 1 ? "peça" : "peças"}</small></div>
+    </li>`;
+  }).join("") + "</ul>";
+}
+$("#pdAtualizar").onclick = () => carregarPedidos();
+document.querySelectorAll("#pdFiltro button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#pdFiltro button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  PD.sit = b.dataset.sit; carregarPedidos();
+});
+$("#pdLista").addEventListener("click", e => { const li = e.target.closest(".pd"); if (li) abrirPedido(+li.dataset.num); });
+$("#pdLista").addEventListener("keydown", e => { const li = e.target.closest(".pd"); if (li && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); abrirPedido(+li.dataset.num); } });
+
+// link da mensagem do WhatsApp: #pedido-K7P2QX (código) ou #pedido-42 (número, vindo da notificação)
+async function abrirPedidoDoLink() {
+  const m = /^#pedido-([A-Za-z0-9]+)$/.exec(location.hash);
+  if (!m) return;
+  mostrarAba("pedidos");
+  const chave = m[1].toUpperCase();
+  await abrirPedido(/^\d+$/.test(chave) ? +chave : chave);
+}
+window.addEventListener("hashchange", () => { if (iniciado && /^#pedido/.test(location.hash)) { if (location.hash === "#pedidos") mostrarAba("pedidos"); else abrirPedidoDoLink(); } });
+
+async function abrirPedido(chave) {
+  let q = sb.from("pedidos").select("*");
+  q = typeof chave === "number" ? q.eq("numero", chave) : q.eq("codigo", chave);
+  const { data, error } = await q.maybeSingle();
+  if (error) { console.error(error); toast(FALTA_PEDIDOS(error) ? "Falta rodar o pedidos.sql no Supabase." : "Não foi possível abrir o pedido."); return; }
+  if (!data) {
+    toast(typeof chave === "number" ? `Pedido ${chave} não encontrado.` : `Pedido ${chave} não encontrado. Use a lista da mensagem do WhatsApp.`);
+    return;
+  }
+  if (data.cliente_id && !PD.clientes.has(data.cliente_id)) await carregarClientesPD();
+  PD.atual = data; PD.confirmando = false;
+  desenharPedido();
+  $("#pedido").hidden = false; document.body.style.overflow = "hidden";
+}
+function fecharPedido() {
+  $("#pedido").hidden = true; document.body.style.overflow = "";
+  PD.atual = null;
+  if (/^#pedido-/.test(location.hash)) history.replaceState(null, "", location.pathname + location.search + "#pedidos");
+}
+$("#pdFechar").onclick = fecharPedido;
+$("#pedido").addEventListener("click", e => { if (e.target === $("#pedido")) fecharPedido(); });
+
+function desenharPedido() {
+  const p = PD.atual; if (!p) return;
+  const its = Array.isArray(p.itens) ? p.itens : [];
+  $("#pdTitulo").textContent = "Pedido " + numPed(p.numero).replace("Nº ", "nº ");
+  const atual = id => S.pecas.find(x => x.id === id);
+  const itens = its.map(i => {
+    const a = atual(i.peca_id);
+    const alerta = !a ? "Peça apagada da vitrine" : a.arquivada ? "Peça arquivada hoje" : (i.valor != null && a.valor != null && a.valor !== i.valor) ? `Preço hoje: ${brl(a.valor)}` : "";
+    return `<li class="pd-it">${imgPed(i.foto)}
+      <div><div class="nm">${esc(i.nome)}</div>
+        <div class="sub">${i.codigo ? "REF. " + esc(String(i.codigo).toUpperCase()) + " · " : ""}${i.quantidade} × ${i.valor != null ? brl(i.valor) : "sob consulta"}</div>
+        ${alerta ? `<div class="alerta">${esc(alerta)}</div>` : ""}</div>
+      <div class="vl">${i.valor != null ? brl(i.valor * i.quantidade) : "—"}</div></li>`;
+  }).join("");
+  const pg = LH.pagamento(S.config, p.total);
+  const tot = `<div class="pd-tot">
+    <div class="lin forte"><span>Total · ${p.qtd_pecas} ${p.qtd_pecas === 1 ? "peça" : "peças"}</span><b>${brl(p.total)}${p.sem_preco ? " +" : ""}</b></div>
+    ${pg && pg.pix != null ? `<div class="lin"><span>No Pix (${LH.pctTxt(pg.pixPct)} de desconto)</span><span>${brl(pg.pix)}</span></div>` : ""}
+    ${pg && pg.parcelas ? `<div class="lin"><span>Ou em ${pg.parcelas}x sem juros</span><span>${brl(pg.parcela)}</span></div>` : ""}
+    ${p.sem_preco ? `<div class="lin"><span>Tem peça sob consulta (sem preço no total)</span></div>` : ""}
+  </div>`;
+  const ok = p.situacao === "vendido" ? `<div class="pd-ok">✓ Venda lançada na Gestão${p.vendido_em ? " em " + esc(dataHora(p.vendido_em)) : ""}, com baixa no estoque.</div>`
+    : p.situacao === "cancelado" ? `<div class="pd-ok" style="background:var(--surface);border-color:var(--line)">Pedido cancelado.</div>` : "";
+  $("#pdCorpo").innerHTML = `
+    <div class="pd-meta"><span class="sit ${esc(p.situacao)}">${SIT_TXT[p.situacao] || ""}</span><span>Recebido em ${esc(dataHora(p.criado_em))}</span><span>Código ${esc(p.codigo)}</span></div>
+    ${ok}
+    ${blocoCliente(p)}
+    <div class="field"><label for="pdCliente">${cliDe(p) ? "Observação do pedido" : "Cliente / observação"}</label><input id="pdCliente" maxlength="200" autocomplete="off" placeholder="${cliDe(p) ? "Ex.: entrega sábado" : "Ex.: Maria — entrega sábado"}" value="${esc(p.cliente || "")}"></div>
+    <ul class="pd-itens">${itens}</ul>
+    ${tot}
+    <div id="pdConf"></div>`;
+  $("#pdCliente").addEventListener("change", async e => {
+    const v = e.target.value.trim().slice(0, 200);
+    const { error } = await sb.from("pedidos").update({ cliente: v, atualizado_em: new Date().toISOString() }).eq("id", p.id);
+    if (error) { toast("Não foi possível salvar."); return; }
+    p.cliente = v; toast("Salvo"); carregarPedidosSeAberta();
+  });
+  if (PD.confirmando) desenharConfirmacao(); else rodapePedido();
+}
+function blocoCliente(p) {
+  const c = cliDe(p); if (!c) return "";
+  const wa = "https://wa.me/" + LH.soDig(c.whatsapp);
+  return `<div class="pd-cli">
+    <div><span class="lbl">Cliente</span><b>${esc(c.nome)}</b>
+      <small>${esc(LH.fmtWhats(c.whatsapp))}${c.cpf ? " · CPF " + esc(LH.fmtCPF(c.cpf)) : ""}${c.cidade ? " · " + esc(c.cidade) : ""}</small></div>
+    <div class="pd-cli-b"><a class="btn sm" href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a><a class="btn sm" href="gestao.html#cliente-${esc(c.id)}">Ver ficha</a></div>
+  </div>`;
+}
+function carregarPedidosSeAberta() { if (!$("#abaPedidos").hidden) carregarPedidos(); else contarPedidosNovos(); }
+function rodapePedido() {
+  const p = PD.atual, f = $("#pdRodape");
+  if (p.situacao === "novo") f.innerHTML = '<button class="btn danger" type="button" id="pdCancelar">Cancelar pedido</button><button class="btn primary" type="button" id="pdConfirmar">Confirmar venda</button>';
+  else if (p.situacao === "vendido") f.innerHTML = '<button class="btn danger" type="button" id="pdDesfazer">Desfazer venda</button><a class="btn primary" href="gestao.html">Abrir Gestão</a>';
+  else f.innerHTML = '<button class="btn primary" type="button" id="pdReabrir">Reabrir pedido</button>';
+  const on = (id, fn) => { const b = $("#" + id); if (b) b.onclick = fn; };
+  on("pdCancelar", () => mudarSituacao("cancelado", "Pedido cancelado"));
+  on("pdReabrir", () => mudarSituacao("novo", "Pedido reaberto"));
+  on("pdConfirmar", () => { PD.confirmando = true; desenharConfirmacao(); });
+  on("pdDesfazer", desfazerVenda);
+}
+async function mudarSituacao(sit, msg) {
+  const p = PD.atual;
+  const { error } = await sb.from("pedidos").update({ situacao: sit, atualizado_em: new Date().toISOString() }).eq("id", p.id);
+  if (error) { toast("Não foi possível mudar o pedido."); return; }
+  p.situacao = sit; toast(msg); desenharPedido(); carregarPedidosSeAberta();
+}
+async function desfazerVenda() {
+  if (!confirm("Desfazer a venda deste pedido? As vendas lançadas na Gestão serão apagadas e as peças voltam para o estoque.")) return;
+  const p = PD.atual;
+  const { error } = await sb.rpc("desfazer_venda_pedido", { p_numero: p.numero });
+  if (error) { console.error(error); toast("Não foi possível desfazer: " + (error.message || "erro")); return; }
+  p.situacao = "novo"; p.venda_ids = []; p.vendido_em = null;
+  toast("Venda desfeita. O pedido voltou para Novos."); desenharPedido(); carregarPedidosSeAberta();
+}
+async function configGestao() {
+  if (PD.gcfg) return PD.gcfg;
+  let r = null;
+  try { const q = await sb.from("gestao_config").select("*").eq("id", 1).maybeSingle(); r = q.error ? null : q.data; } catch (e) { }
+  const l = (r && r.listas) || {};
+  const lista = (k, pad) => Array.isArray(l[k]) && l[k].length ? l[k] : pad;
+  const taxas = r && r.taxas && Object.keys(r.taxas).length ? r.taxas : { "Pix": 0, "Dinheiro": 0, "Cartão de Débito": 0.0075, "Cartão de Crédito": 0.0269, "Cartão de Crédito Parcelado": 0.0899 };
+  const formas = ["Pix", ...Object.keys(taxas).filter(k => k !== "Pix"), "Marketplace"];
+  PD.gcfg = { canais: lista("canais", ["Instagram", "WhatsApp", "TikTok Shop", "Shopee", "Mercado Livre"]), regioes: lista("regioes", ["Nordeste", "Sudeste", "Sul", "Centro-Oeste", "Norte"]), formas };
+  return PD.gcfg;
+}
+const hojeISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+async function desenharConfirmacao() {
+  const p = PD.atual, g = await configGestao();
+  if (!PD.atual || PD.atual !== p) return;
+  const its = Array.isArray(p.itens) ? p.itens : [];
+  const semPreco = its.filter(i => i.valor == null);
+  const opt = (lista, sel) => lista.map(v => `<option value="${esc(v)}"${v === sel ? " selected" : ""}>${esc(v)}</option>`).join("");
+  const canal0 = g.canais.find(c => /whats/i.test(c)) || g.canais[0] || "";
+  $("#pdConf").innerHTML = `<div class="pd-conf">
+    <h4>Confirmar venda</h4>
+    <p class="hint">Lança na Gestão uma venda para cada peça do pedido e dá baixa no estoque.</p>
+    <div class="two">
+      <div class="field"><label for="pcData">Data</label><input id="pcData" type="date" value="${hojeISO()}"></div>
+      <div class="field"><label for="pcCanal">Canal</label><select id="pcCanal">${opt(g.canais, canal0)}</select></div>
+    </div>
+    <div class="two">
+      <div class="field"><label for="pcPag">Pagamento</label><select id="pcPag">${opt(g.formas, "Pix")}</select></div>
+      <div class="field"><label for="pcRegiao">Região</label><select id="pcRegiao"><option value="">Não informada</option>${opt(g.regioes, "")}</select></div>
+    </div>
+    ${semPreco.map((i, k) => `<div class="field"><label for="pcPreco${k}">Preço de “${esc(i.nome)}” (sob consulta)</label><div class="money"><span>R$</span><input id="pcPreco${k}" data-peca="${esc(i.peca_id)}" data-q="${i.quantidade}" inputmode="decimal" autocomplete="off" placeholder="0,00"></div></div>`).join("")}
+    <div class="field"><label for="pcValor">Valor final recebido</label><div class="money"><span>R$</span><input id="pcValor" inputmode="decimal" autocomplete="off"></div>
+      <div class="pd-rap"><button class="btn sm" type="button" id="pcCheio">Valor cheio</button><button class="btn sm" type="button" id="pcPix">Preço no Pix</button></div>
+      <p class="hint" id="pcResumo"></p></div>
+  </div>`;
+  const precos = () => { const o = {}; document.querySelectorAll("#pdConf [data-peca]").forEach(el => { const v = parseValor(el.value); if (v != null) o[el.dataset.peca] = v; }); return o; };
+  const cheio = () => { const pr = precos(); return its.reduce((s, i) => s + (i.valor != null ? i.valor : (pr[i.peca_id] || 0)) * i.quantidade, 0); };
+  const pixDe = v => { const pg = LH.pagamento(S.config, v); return pg && pg.pix != null ? pg.pix : v; };
+  const resumo = () => { const c = cheio(), v = parseValor($("#pcValor").value); const d = v == null ? 0 : c - v;
+    $("#pcResumo").textContent = v == null ? "" : d > 0 ? `Desconto de ${brl(d)} (${LH.pctTxt(c ? d / c : 0)}) sobre ${brl(c)}.` : d < 0 ? `Acréscimo de ${brl(-d)} sobre ${brl(c)}.` : "Sem desconto."; };
+  $("#pcValor").value = fmtValorInput(pixDe(cheio()));
+  $("#pcCheio").onclick = () => { $("#pcValor").value = fmtValorInput(cheio()); resumo(); };
+  $("#pcPix").onclick = () => { $("#pcValor").value = fmtValorInput(pixDe(cheio())); $("#pcPag").value = "Pix"; resumo(); };
+  $("#pcValor").addEventListener("input", resumo);
+  $("#pcValor").addEventListener("blur", e => { const v = parseValor(e.target.value); e.target.value = v == null ? "" : fmtValorInput(v); resumo(); });
+  document.querySelectorAll("#pdConf [data-peca]").forEach(el => el.addEventListener("change", () => { $("#pcValor").value = fmtValorInput($("#pcPag").value === "Pix" ? pixDe(cheio()) : cheio()); resumo(); }));
+  resumo();
+  $("#pdRodape").innerHTML = '<button class="btn ghost" type="button" id="pcVoltar">Voltar</button><button class="btn primary" type="button" id="pcRegistrar">Registrar venda</button>';
+  $("#pcVoltar").onclick = () => { PD.confirmando = false; $("#pdConf").innerHTML = ""; rodapePedido(); };
+  $("#pcRegistrar").onclick = async () => {
+    const valor = parseValor($("#pcValor").value);
+    if (valor == null) { toast("Informe o valor final."); $("#pcValor").focus(); return; }
+    const faltaPreco = [...document.querySelectorAll("#pdConf [data-peca]")].find(el => parseValor(el.value) == null);
+    if (faltaPreco) { toast("Informe o preço da peça sob consulta."); faltaPreco.focus(); return; }
+    const b = $("#pcRegistrar"); b.disabled = true; b.textContent = "Registrando…";
+    const { error } = await sb.rpc("confirmar_pedido", { p_numero: p.numero, p_data: $("#pcData").value || null, p_canal: $("#pcCanal").value, p_pagamento: $("#pcPag").value, p_valor_final: valor, p_regiao: $("#pcRegiao").value, p_precos: precos() });
+    b.disabled = false; b.textContent = "Registrar venda";
+    if (error) { console.error(error); toast(FALTA_PEDIDOS(error) ? "Falta rodar o pedidos.sql no Supabase." : "Não foi possível registrar: " + (error.message || "erro")); return; }
+    p.situacao = "vendido"; p.vendido_em = new Date().toISOString(); PD.confirmando = false;
+    toast("Venda registrada na Gestão"); desenharPedido(); carregarPedidosSeAberta();
+  };
+  setTimeout(() => $("#pdConf").scrollIntoView({ behavior: "smooth", block: "start" }), 50);
 }
 
 async function boot() {
@@ -622,7 +860,7 @@ $("#ajSalvar").onclick = async () => {
   const c = { colecao: $("#aColecao").value.trim(), whatsapp: $("#aWhats").value.trim(), instagram: ig ? "@" + ig : "", ordemCats: [...ORDEM, ...antigas], destaques: DEST, temDestaques: !!S.config.temDestaques, ...pagamentoDe(S.config), ...(S.config.temPagamento ? lerPagamento() : {}) };
   try { await store.saveConfig(c); S.config = c; fecharAjustes(); render(); toast("Ajustes salvos"); } catch (e) { toast("Não foi possível salvar os ajustes."); }
 };
-document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("#editor").hidden) fecharEditor(true); if (!$("#ajustes").hidden) fecharAjustes(); } });
+document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("#editor").hidden) fecharEditor(true); if (!$("#ajustes").hidden) fecharAjustes(); if (!$("#pedido").hidden) fecharPedido(); } });
 
 /* =========================================================
    Utilidades de imagem

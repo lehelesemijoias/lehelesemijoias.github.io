@@ -10,9 +10,9 @@
   const { esc, brl, norm, catOf } = LH;
 
   const G = {
-    pecas: [], custos: new Map(), forn: [], vendas: [], perdas: [], fin: [], traf: [], cfg: null,
+    pecas: [], custos: new Map(), forn: [], vendas: [], perdas: [], fin: [], traf: [], cfg: null, clientes: [], semClientes: true,
     aba: "resumo", f: { ano: "", mes: "", canal: "", linha: "", regiao: "", pag: "" },
-    busca: { estoque: "", vendas: "", perdas: "", fin: "", notas: "" }, mesLista: { vendas: "", perdas: "", fin: "", traf: "", notas: "" }, notas: []
+    busca: { estoque: "", vendas: "", perdas: "", fin: "", notas: "", clientes: "" }, mesLista: { vendas: "", perdas: "", fin: "", traf: "", notas: "" }, notas: []
   };
   let sb = null;
 
@@ -127,6 +127,9 @@
     G.forn = rs[2].data || [];
     G.vendas = rs[3].data || []; G.perdas = rs[4].data || []; G.fin = rs[5].data || []; G.traf = rs[6].data || [];
     G.cfg = lerCfg(rs[7].data); G.notas = rs[8].data || [];
+    // clientes: só existe depois de rodar o clientes.sql (sem ele, o resto da gestão continua funcionando)
+    try { const rc = await sb.from("clientes").select("*").order("nome", { ascending: true }); G.semClientes = !!rc.error; G.clientes = rc.error ? [] : (rc.data || []); }
+    catch (e) { G.semClientes = true; G.clientes = []; }
   }
   async function gravar(tabela, id, linha) {
     if (id) { const { error } = await sb.from(tabela).update(linha).eq("id", id); if (error) throw error; return id; }
@@ -149,7 +152,7 @@
     const { error } = await sb.from("gestao_config").update(cfgParaLinha(G.cfg)).eq("id", 1);
     if (error) throw error;
   }
-  async function recarregar() { try { await carregar(); desenhar(); } catch (e) { console.error(e); } }
+  async function recarregar() { try { await carregar(); desenhar(); if (FICHA) { if (cliDe(FICHA.id)) desenharFicha(); else fecharFicha(); } } catch (e) { console.error(e); } }
   const falhou = e => { if (e && e.aviso) { toast(e.aviso); return; } console.error(e); const m = (e && (e.message || e.code || e.error)) || "";
     toast(/relation|does not exist|schema cache|PGRST20|bucket not found|column/i.test(m) ? "Falta rodar o gestao.sql novo no Supabase." : /mime|type/i.test(m) ? "Tipo de arquivo não aceito. Use JPG, PNG ou PDF." : /size|large|exceed/i.test(m) ? "Arquivo grande demais (limite 15 MB)." : "Não foi possível salvar. Verifique a internet."); };
 
@@ -350,12 +353,12 @@
      ABAS
      ========================================================= */
   const ABAS = [
-    { id: "resumo", nome: "Resumo" }, { id: "estoque", nome: "Estoque" }, { id: "vendas", nome: "Vendas" },
+    { id: "resumo", nome: "Resumo" }, { id: "estoque", nome: "Estoque" }, { id: "vendas", nome: "Vendas" }, { id: "clientes", nome: "Clientes" },
     { id: "perdas", nome: "Perdas" }, { id: "financeiro", nome: "Financeiro" }, { id: "precos", nome: "Preços" },
     { id: "fornecedores", nome: "Fornecedores" }, { id: "trafego", nome: "Tráfego" }, { id: "notas", nome: "Notas fiscais" }
   ];
   const ACOES = {
-    vendas: ["Nova venda", () => formVenda()], perdas: ["Nova perda", () => formPerda()], financeiro: ["Nova movimentação", () => formFin()],
+    vendas: ["Nova venda", () => formVenda()], clientes: ["Novo cliente", () => formCliente()], perdas: ["Nova perda", () => formPerda()], financeiro: ["Nova movimentação", () => formFin()],
     fornecedores: ["Novo fornecedor", () => formForn()], trafego: ["Nova campanha", () => formTraf()], notas: ["Anexar nota fiscal", () => formNota()]
   };
 
@@ -513,18 +516,18 @@
   /* ---------- VENDAS ---------- */
   function abaVendas() {
     const q = norm(G.busca.vendas);
-    const lista = noMes(G.vendas, "vendas").filter(v => !q || norm(v.peca_nome).includes(q) || norm(v.canal).includes(q)).slice().sort((a, b) => (b.data || "").localeCompare(a.data || "") || (b.criado_em || "").localeCompare(a.criado_em || ""));
+    const lista = noMes(G.vendas, "vendas").filter(v => !q || norm(v.peca_nome).includes(q) || norm(v.canal).includes(q) || norm(cliNome(v.cliente_id)).includes(q)).slice().sort((a, b) => (b.data || "").localeCompare(a.data || "") || (b.criado_em || "").localeCompare(a.criado_em || ""));
     const cs = lista.map(v => contaVenda(v));
     const tot = cs.reduce((s, c) => s + c.total, 0), luc = cs.reduce((s, c) => s + (c.lucro || 0), 0), tx = cs.reduce((s, c) => s + c.taxa, 0);
     const descT = cs.reduce((s, c) => s + Math.max(0, c.desconto), 0), pcs = lista.reduce((s, v) => s + (v.quantidade || 0), 0);
     const porCanal = new Map(); lista.forEach((v, i) => porCanal.set(v.canal || "Não informado", (porCanal.get(v.canal || "Não informado") || 0) + cs[i].total));
     const itens = lista.map((v, i) => { const c = cs[i]; return `<li class="reg" data-venda="${esc(v.id)}" tabindex="0" role="button">
       ${fotoDe(pecaDe(v.peca_id)) ? `<img src="${esc(fotoDe(pecaDe(v.peca_id)))}" alt="" loading="lazy">` : '<span class="semfoto"></span>'}
-      <div class="meio"><b>${esc(v.quantidade > 1 ? v.quantidade + "× " : "")}${esc(v.peca_nome || "Peça")}</b><span>${esc([dataBR(v.data), v.canal, v.pagamento, v.regiao].filter(Boolean).join(" · "))}</span></div>
+      <div class="meio"><b>${esc(v.quantidade > 1 ? v.quantidade + "× " : "")}${esc(v.peca_nome || "Peça")}</b><span>${esc([dataBR(v.data), cliNome(v.cliente_id), v.canal, v.pagamento, v.regiao].filter(Boolean).join(" · "))}</span></div>
       <div class="dir"><b>${esc(din(c.total))}</b>${c.desconto > 0 ? `<small>desconto ${esc(din(c.desconto))}</small>` : ""}<small class="${c.lucro != null && c.lucro < 0 ? "neg" : ""}">${c.lucro == null ? "sem custo" : "lucro " + esc(din(c.lucro))}</small>${c.margem != null ? `<small>${esc(pct(c.margem))}</small>` : ""}</div></li>`; }).join("");
     return `<div class="kpis k4">${kpi("Total vendido", din(tot), "já com descontos")}${kpi("Lucro líquido", din(luc), "", luc < 0 ? "neg" : "")}${kpi("Descontos dados", din(descT), tot + descT ? pct(descT / (tot + descT)) + " do valor cheio" : "")}${kpi("Taxas de maquininha", din(tx))}${kpi("Ticket médio", din(lista.length ? Math.round(tot / lista.length) : null))}${kpi("Margem média", pct(tot ? luc / tot : null))}${kpi("Nº de vendas", milhar(lista.length))}${kpi("Peças vendidas", milhar(pcs))}</div>
       ${cartao("Vendas por canal", barras([...porCanal].map(([r, v]) => ({ rotulo: r, valor: v }))))}
-      <div class="busca">${seletorMes(G.vendas, "vendas")}<input type="search" data-busca="vendas" placeholder="Buscar peça ou canal" value="${esc(G.busca.vendas)}" aria-label="Buscar venda"></div>
+      <div class="busca">${seletorMes(G.vendas, "vendas")}<input type="search" data-busca="vendas" placeholder="Buscar peça, canal ou cliente" value="${esc(G.busca.vendas)}" aria-label="Buscar venda"></div>
       <ul class="regs">${itens || `<li class="vazio-g">${G.vendas.length ? "Nenhuma venda encontrada." : "Nenhuma venda registrada ainda. Toque em “Nova venda”."}</li>`}</ul>`;
   }
   function formVenda(id) {
@@ -535,6 +538,7 @@
       campos: [
         { k: "data", rotulo: "Data", tipo: "data", obrig: true, meia: true },
         { k: "canal", rotulo: "Canal", tipo: "lista", obrig: true, meia: true, opcoes: () => ops(G.cfg.listas.canais) },
+        ...(G.semClientes ? [] : [{ k: "cliente_id", rotulo: "Cliente", tipo: "lista", vazio: "Sem cliente", opcoes: opcoesClientes, dica: "Opcional. Cadastre na aba Clientes." }]),
         { k: "peca_id", rotulo: "Peça", tipo: "lista", obrig: true, opcoes: opcoesPecas },
         { k: "quantidade", rotulo: "Quantidade", tipo: "numero", obrig: true, meia: true },
         { k: "preco_unit", rotulo: "Preço unitário", tipo: "dinheiro", obrig: true, meia: true, dica: "Vem da vitrine." },
@@ -582,7 +586,8 @@
           data: v.data, canal: v.canal, peca_id: v.peca_id || null, peca_nome: p ? p.nome : (v0 && v0.peca_nome) || "",
           linha: p ? p.linha : "semijoias", categoria: p ? catOf(p) : "", quantidade: v.quantidade, preco_unit: v.preco_unit || 0, desconto,
           custo_unit: mesmaPeca && v0.custo_unit != null ? v0.custo_unit : custoDe(v.peca_id),
-          pagamento: v.pagamento, taxa_pct: mesmaForma ? Number(v0.taxa_pct) : taxaDe(v.pagamento), regiao: v.regiao || "", obs: v.obs || ""
+          pagamento: v.pagamento, taxa_pct: mesmaForma ? Number(v0.taxa_pct) : taxaDe(v.pagamento), regiao: v.regiao || "", obs: v.obs || "",
+          ...(G.semClientes ? {} : { cliente_id: v.cliente_id || null })
         });
         if (v0) await mover(v0.peca_id, v0.quantidade || 0);   // desfaz a baixa antiga
         await mover(v.peca_id, -(v.quantidade || 0));
@@ -591,6 +596,121 @@
       excluir: v0 ? async () => { await apagar("vendas", id); await mover(v0.peca_id, v0.quantidade || 0); } : null, textoExcluir: "Excluir esta venda? A peça volta para o estoque."
     });
   }
+
+  /* ---------- CLIENTES ---------- */
+  const cliDe = id => id ? G.clientes.find(c => c.id === id) : null;
+  const cliNome = id => { const c = cliDe(id); return c ? c.nome : ""; };
+  const opcoesClientes = () => G.clientes.slice().sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")).map(c => ({ v: c.id, t: `${c.nome} · ${LH.fmtWhats(c.whatsapp)}` }));
+  function comprasDe(id) {
+    const vs = G.vendas.filter(v => v.cliente_id === id).sort((a, b) => (b.data || "").localeCompare(a.data || "") || (b.criado_em || "").localeCompare(a.criado_em || ""));
+    const total = vs.reduce((s, v) => s + contaVenda(v).total, 0);
+    const datas = [...new Set(vs.map(v => v.data))];   // vendas no mesmo dia contam como uma compra
+    return { vs, total, compras: datas.length, ultima: vs[0] ? vs[0].data : null };
+  }
+  function abaClientes() {
+    if (G.semClientes) return `<div class="vazio-g" style="text-align:left;padding:18px;border:1px dashed var(--line);border-radius:12px;background:var(--surface)"><b>Falta ligar o cadastro de clientes.</b><br>No Supabase, abra o SQL Editor, cole o arquivo <b>clientes.sql</b> e toque em Run. Depois recarregue esta página.</div>`;
+    const q = norm(G.busca.clientes), qd = LH.soDig(G.busca.clientes);
+    const dados = G.clientes.map(c => ({ c, k: comprasDe(c.id) }));
+    const lista = dados.filter(({ c }) => !q || norm(c.nome).includes(q) || norm(c.cidade).includes(q) || (qd.length >= 3 && (LH.soDig(c.whatsapp).includes(qd) || (c.cpf || "").includes(qd))))
+      .sort((a, b) => (b.k.ultima || "").localeCompare(a.k.ultima || "") || a.c.nome.localeCompare(b.c.nome, "pt-BR"));
+    const compraram = dados.filter(d => d.k.compras).length, totCli = dados.reduce((s, d) => s + d.k.total, 0);
+    const mes = hoje().slice(0, 7), novos = G.clientes.filter(c => (c.criado_em || "").slice(0, 7) === mes).length;
+    const itens = lista.map(({ c, k }) => `<li class="reg sem-foto" data-cli="${esc(c.id)}" tabindex="0" role="button"><span class="sinal forn">${esc((c.nome || "?").slice(0, 1).toUpperCase())}</span>
+      <div class="meio"><b>${esc(c.nome)}</b><span>${esc([LH.fmtWhats(c.whatsapp), c.cidade].filter(Boolean).join(" · "))}</span>${c.origem === "vitrine" ? '<span class="tag-v">cadastro pela vitrine</span>' : ""}</div>
+      <div class="dir"><b>${k.total ? esc(din(k.total)) : "—"}</b><small>${k.compras ? `${k.compras} ${k.compras === 1 ? "compra" : "compras"}` : "sem compras"}</small>${k.ultima ? `<small>última ${esc(dataBR(k.ultima))}</small>` : ""}</div></li>`).join("");
+    return `<div class="kpis k4">${kpi("Clientes", milhar(G.clientes.length), novos ? `${novos} novos este mês` : "")}${kpi("Já compraram", milhar(compraram), G.clientes.length ? pct(compraram / G.clientes.length) + " dos clientes" : "")}${kpi("Vendido a clientes", din(totCli), "vendas ligadas a um cliente")}${kpi("Gasto médio", din(compraram ? Math.round(totCli / compraram) : null), "por cliente que comprou")}</div>
+      <div class="busca"><input type="search" data-busca="clientes" placeholder="Buscar nome, WhatsApp, CPF ou cidade" value="${esc(G.busca.clientes)}" aria-label="Buscar cliente"></div>
+      <ul class="regs">${itens || `<li class="vazio-g">${G.clientes.length ? "Nenhum cliente encontrado." : "Nenhum cliente ainda. Eles aparecem aqui quando enviam a sacolinha pela vitrine, ou toque em “Novo cliente”."}</li>`}</ul>`;
+  }
+  function formCliente(id) {
+    const c0 = cliDe(id);
+    abrirForm({
+      titulo: c0 ? "Editar cliente" : "Novo cliente",
+      campos: [
+        { k: "nome", rotulo: "Nome", tipo: "texto", obrig: true },
+        { k: "whatsapp", rotulo: "WhatsApp", tipo: "texto", obrig: true, meia: true, dica: "Com DDD, ex.: (79) 99999-0000" },
+        { k: "cpf", rotulo: "CPF", tipo: "texto", meia: true, dica: "Opcional" },
+        { k: "cidade", rotulo: "Cidade", tipo: "texto" },
+        { k: "obs", rotulo: "Observações", tipo: "area" }
+      ],
+      vals: c0 ? Object.assign({}, c0, { whatsapp: LH.fmtWhats(c0.whatsapp), cpf: c0.cpf ? LH.fmtCPF(c0.cpf) : "" }) : {},
+      aoAbrir: () => {
+        const w = $("#fm_whatsapp"), c = $("#fm_cpf");
+        if (w) { w.setAttribute("inputmode", "tel"); w.addEventListener("input", () => { w.value = LH.fmtWhats(w.value); }); }
+        if (c) { c.setAttribute("inputmode", "numeric"); c.addEventListener("input", () => { c.value = LH.fmtCPF(c.value); }); }
+      },
+      salvar: async v => {
+        const nome = (v.nome || "").trim().replace(/\s+/g, " "), wa = LH.whatsNormal(v.whatsapp), cpf = LH.soDig(v.cpf);
+        if (nome.length < 2) throw Object.assign(new Error("nome"), { aviso: "Digite o nome do cliente." });
+        if (!wa) throw Object.assign(new Error("whats"), { aviso: "WhatsApp inválido. Use DDD + número, ex.: (79) 99999-0000." });
+        if (cpf && !LH.cpfValido(cpf)) throw Object.assign(new Error("cpf"), { aviso: "Este CPF não é válido. Confira os números ou deixe em branco." });
+        const dup = G.clientes.find(c => c.whatsapp === wa && c.id !== id);
+        if (dup) throw Object.assign(new Error("dup"), { aviso: `Já existe um cliente com esse WhatsApp: ${dup.nome}.` });
+        try { await gravar("clientes", id, { nome, whatsapp: wa, cpf: cpf || null, cidade: (v.cidade || "").slice(0, 80), obs: v.obs || "" }); }
+        catch (e) {
+          const m = ((e && e.message) || "") + " " + ((e && e.code) || "");
+          if (/23505|duplicate/i.test(m)) throw Object.assign(new Error("dup"), { aviso: "Já existe um cliente com esse WhatsApp." });
+          if (/CPF/i.test(m)) throw Object.assign(new Error("cpf"), { aviso: "Este CPF não é válido." });
+          if (/WhatsApp/i.test(m)) throw Object.assign(new Error("wa"), { aviso: "WhatsApp inválido." });
+          throw e;
+        }
+      },
+      textoOk: c0 ? "Cliente atualizado" : "Cliente cadastrado",
+      excluir: c0 ? async () => { await apagar("clientes", id); fecharFicha(); } : null,
+      textoExcluir: "Apagar este cliente? As compras continuam na Gestão, mas sem o nome dela, e o histórico de visitas deixa de ser ligado a ela."
+    });
+  }
+  // ficha da cliente
+  let FICHA = null;
+  async function abrirFicha(id) {
+    const c = cliDe(id); if (!c) { toast("Cliente não encontrado."); return; }
+    FICHA = { id, hist: null };
+    desenharFicha();
+    $("#cli").hidden = false; document.body.style.overflow = "hidden";
+    const { data, error } = await sb.rpc("historico_cliente", { p_id: id });
+    if (!FICHA || FICHA.id !== id) return;
+    FICHA.hist = error ? { erro: true } : (data || {});
+    desenharFicha();
+  }
+  function fecharFicha() {
+    $("#cli").hidden = true; document.body.style.overflow = ""; FICHA = null;
+    if (/^#cliente-/.test(location.hash)) history.replaceState(null, "", location.pathname + location.search);
+  }
+  $("#cliFechar").onclick = fecharFicha;
+  $("#cli").addEventListener("click", e => { if (e.target === $("#cli")) fecharFicha(); });
+  const quandoBR = iso => { if (!iso) return ""; const d = new Date(iso); return isNaN(d) ? "" : `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`; };
+  const SIT = { novo: "Novo", vendido: "Vendido", cancelado: "Cancelado" };
+  function desenharFicha() {
+    const c = cliDe(FICHA.id); if (!c) return;
+    const k = comprasDe(c.id), h = FICHA.hist;
+    $("#cliTitulo").textContent = c.nome;
+    const compras = k.vs.map(v => { const t = contaVenda(v).total, p = pecaDe(v.peca_id); return `<li class="reg" data-venda="${esc(v.id)}" tabindex="0" role="button">${fotoDe(p) ? `<img src="${esc(fotoDe(p))}" alt="" loading="lazy">` : '<span class="semfoto"></span>'}
+      <div class="meio"><b>${esc(v.quantidade > 1 ? v.quantidade + "× " : "")}${esc(v.peca_nome || "Peça")}</b><span>${esc([dataBR(v.data), v.canal, v.pagamento].filter(Boolean).join(" · "))}</span></div><div class="dir"><b>${esc(din(t))}</b></div></li>`; }).join("");
+    let hist = '<p class="vazio-g">Carregando histórico…</p>';
+    if (h && h.erro) hist = '<p class="vazio-g">Não foi possível carregar o histórico. Verifique se o clientes.sql foi rodado.</p>';
+    else if (h) {
+      const pedidos = (h.pedidos || []).map(p => `<li class="reg sem-foto"><span class="sinal forn">${p.numero}</span><div class="meio"><b>Pedido nº ${String(p.numero).padStart(4, "0")}</b><span>${esc(quandoBR(p.criado_em))} · ${p.qtd_pecas} ${p.qtd_pecas === 1 ? "peça" : "peças"} · ${esc(SIT[p.situacao] || p.situacao)}</span></div><div class="dir"><b>${esc(din(p.total))}${p.sem_preco ? " +" : ""}</b><a class="linkbtn" href="painel.html#pedido-${p.numero}">Abrir</a></div></li>`).join("");
+      const pecas = (h.pecas || []).map(x => { const p = pecaDe(x.peca_id); return `<li class="reg">${fotoDe(p) ? `<img src="${esc(fotoDe(p))}" alt="" loading="lazy">` : '<span class="semfoto"></span>'}
+        <div class="meio"><b>${esc(p ? p.nome : "Peça apagada")}</b><span>${esc([x.aberturas ? `abriu ${x.aberturas}×` : "", x.zap ? `quis ${x.zap}× (WhatsApp)` : "", "última vez " + quandoBR(x.ultima)].filter(Boolean).join(" · "))}</span></div>
+        <div class="dir">${x.zap ? '<small class="tag-v">interesse</small>' : ""}${p && p.valor != null ? `<b>${esc(din(p.valor))}</b>` : ""}</div></li>`; }).join("");
+      hist = cartao("Pedidos pela vitrine", pedidos ? `<ul class="regs">${pedidos}</ul>` : '<p class="vazio-g">Nenhum pedido pela sacolinha.</p>') +
+        cartao("Peças vistas e interesses", pecas ? `<ul class="regs">${pecas}</ul>` : '<p class="vazio-g">Ainda sem peças vistas neste celular.</p>', h.aparelhos ? "" : "") +
+        cartao("Acessos à vitrine", h.aparelhos ? `<div class="calc"><div><span>Visitas</span><b>${milhar(h.visitas)}</b></div><div><span>Última visita</span><b>${esc(quandoBR(h.ultima) || "—")}</b></div><div><span>Primeira visita</span><b>${esc(quandoBR(h.primeira) || "—")}</b></div><div><span>Celulares ligados à ficha</span><b>${h.aparelhos}</b></div></div>`
+          : '<p class="vazio-g">Os acessos aparecem quando a cliente envia uma sacolinha pela vitrine (o celular dela fica ligado à ficha).</p>');
+    }
+    $("#cliCorpo").innerHTML = `
+      <div class="cli-topo"><div><span class="lbl">WhatsApp</span><b>${esc(LH.fmtWhats(c.whatsapp))}</b></div>${c.cpf ? `<div><span class="lbl">CPF</span><b>${esc(LH.fmtCPF(c.cpf))}</b></div>` : ""}${c.cidade ? `<div><span class="lbl">Cidade</span><b>${esc(c.cidade)}</b></div>` : ""}</div>
+      <p class="hint">${c.origem === "vitrine" ? "Cadastro feito pela cliente na vitrine" : "Cadastrado na Gestão"} em ${esc(quandoBR(c.criado_em))}${c.consentimento_em ? " · aceitou guardar os dados" : ""}.</p>
+      ${c.obs ? `<p class="cli-obs">${esc(c.obs)}</p>` : ""}
+      <a class="btn primary cli-zap" href="https://wa.me/${esc(LH.soDig(c.whatsapp))}" target="_blank" rel="noopener">Conversar no WhatsApp</a>
+      <div class="kpis k4">${kpi("Total gasto", din(k.total))}${kpi("Compras", milhar(k.compras))}${kpi("Ticket médio", din(k.compras ? Math.round(k.total / k.compras) : null))}${kpi("Última compra", k.ultima ? dataBR(k.ultima) : "—")}</div>
+      ${cartao("Compras", compras ? `<ul class="regs">${compras}</ul>` : '<p class="vazio-g">Nenhuma compra ligada a este cliente. Ao lançar uma venda, escolha o cliente.</p>', k.vs.length ? `${k.vs.length} ${k.vs.length === 1 ? "lançamento" : "lançamentos"}` : "")}
+      ${hist}`;
+    $("#cliRodape").innerHTML = '<button class="btn" type="button" id="cliEditar">Editar</button><button class="btn primary" type="button" id="cliVenda">Nova venda para ela</button>';
+    $("#cliEditar").onclick = () => formCliente(c.id);
+    $("#cliVenda").onclick = () => { formVenda(); setTimeout(() => { const s = $("#fm_cliente_id"); if (s) { s.value = c.id; s.dispatchEvent(new Event("input", { bubbles: true })); } }, 30); };
+  }
+  $("#cliCorpo").addEventListener("click", e => { const el = e.target.closest("[data-venda]"); if (el) formVenda(el.dataset.venda); });
 
   /* ---------- PERDAS ---------- */
   function abaPerdas() {
@@ -951,11 +1071,11 @@
   function desenhar() {
     if (!G.cfg) return;
     $("#abasG").innerHTML = ABAS.map(a => `<button type="button" role="tab" aria-selected="${a.id === G.aba}" data-aba="${a.id}">${a.nome}</button>`).join("");
-    const fn = { resumo: abaResumo, estoque: abaEstoque, vendas: abaVendas, perdas: abaPerdas, financeiro: abaFinanceiro, precos: abaPrecos, fornecedores: abaFornecedores, trafego: abaTrafego, notas: abaNotas }[G.aba];
+    const fn = { resumo: abaResumo, estoque: abaEstoque, vendas: abaVendas, clientes: abaClientes, perdas: abaPerdas, financeiro: abaFinanceiro, precos: abaPrecos, fornecedores: abaFornecedores, trafego: abaTrafego, notas: abaNotas }[G.aba];
     const foco = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.busca;
     $("#conteudo").innerHTML = `<div class="summary"><h2>${esc(ABAS.find(a => a.id === G.aba).nome)}</h2></div>` + fn();
     if (foco) { const el = document.querySelector(`[data-busca="${foco}"]`); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }
-    const ac = ACOES[G.aba];
+    const ac = G.aba === "clientes" && G.semClientes ? null : ACOES[G.aba];
     $("#dockG").hidden = !ac; if (ac) $("#acaoG").textContent = ac[0];
     document.body.classList.toggle("com-dock", !!ac);
   }
@@ -968,6 +1088,7 @@
   abrirPor("[data-perda]", el => formPerda(el.dataset.perda));
   abrirPor("[data-fin]", el => formFin(el.dataset.fin));
   abrirPor("[data-forn]", el => formForn(el.dataset.forn));
+  abrirPor("[data-cli]", el => abrirFicha(el.dataset.cli));
   abrirPor("[data-traf]", el => formTraf(el.dataset.traf));
   abrirPor("[data-fase]", el => formFase(+el.dataset.fase));
   abrirPor("[data-nota]", el => formNota(el.dataset.nota));
@@ -999,7 +1120,7 @@
       catch (x) { falhou(x); try { Object.assign(G.cfg, (([mult, mkt, emb, formaPreco, taxas]) => ({ mult, mkt, emb, formaPreco, taxas }))(JSON.parse(antes))); } catch (y) { } }
     }
   });
-  document.addEventListener("keydown", e => { if (e.key === "Escape" && FM) fecharForm(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") { if (FM) fecharForm(); else if (FICHA) fecharFicha(); } });
 
   /* ---------- login e início ---------- */
   function mostrarGate(qual) {
@@ -1018,7 +1139,10 @@
     mostrarGate(null);
     $("#contaG").textContent = (session && session.user && session.user.email) || "";
     try { const a = localStorage.getItem("lehele-gestao-aba"); if (a && ABAS.some(x => x.id === a)) G.aba = a; } catch (e) { }
+    const mh = /^#cliente-(.+)$/.exec(location.hash);
+    if (mh) G.aba = "clientes";
     desenhar();
+    if (mh) abrirFicha(decodeURIComponent(mh[1]));
     document.addEventListener("visibilitychange", () => { if (!document.hidden && !FM) recarregar(); });
   }
   async function boot() {

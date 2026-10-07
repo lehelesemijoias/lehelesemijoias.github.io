@@ -25,7 +25,9 @@
     if (cliente) return cliente;
     cliente = window.__MOCK_SUPABASE ||
       window.supabase.createClient(String(CFG.SUPABASE_URL).replace(/\/(rest|auth)\/v1\/?$/, "").replace(/\/+$/, ""), CFG.SUPABASE_ANON_KEY, {
-        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: armazenamento }
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: armazenamento },
+        // o pedido da sacolinha continua sendo enviado mesmo se o WhatsApp abrir por cima da vitrine
+        global: { fetch: (u, o) => /\/rpc\/criar_pedido/.test(String(u)) ? fetch(u, Object.assign({}, o, { keepalive: true })).catch(() => fetch(u, o)) : fetch(u, o) }
       });
     return cliente;
   }
@@ -126,5 +128,26 @@
     return criarCliente().storage.from("fotos").getPublicUrl(path).data.publicUrl;
   }
 
-  window.LH = { colunas, pagamento, pctTxt, LINHAS, nomeLinha, CFG, configurado, criarCliente, manterConectado, esc, brl, mesAno, catOf, norm, rankCat, ordenarCats, ordenar, whatsLink, rowToPeca, pecaToRow, rowToConfig, configToRow, fotoURL };
+  // CPF e WhatsApp (mesmas regras do banco)
+  const soDig = t => String(t ?? "").replace(/\D/g, "");
+  function cpfValido(c) {
+    const d = soDig(c);
+    if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+    const dv = n => { let s = 0; for (let i = 0; i < n; i++) s += +d[i] * (n + 1 - i); const r = (s * 10) % 11; return r === 10 ? 0 : r; };
+    return dv(9) === +d[9] && dv(10) === +d[10];
+  }
+  // devolve 55 + DDD + número, ou null se não for um telefone do Brasil
+  function whatsNormal(t) {
+    let d = soDig(t);
+    if ((d.length === 12 || d.length === 13) && d.startsWith("55")) d = d.slice(2);
+    if (d.length !== 10 && d.length !== 11) return null;
+    if (+d.slice(0, 2) < 11) return null;
+    if (d.length === 11 && d[2] !== "9") return null;
+    return "55" + d;
+  }
+  const fmtCPF = c => { const d = soDig(c).slice(0, 11); return d.length <= 3 ? d : d.length <= 6 ? `${d.slice(0, 3)}.${d.slice(3)}` : d.length <= 9 ? `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}` : `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`; };
+  const fmtWhats = t => { let d = soDig(t); if ((d.length === 12 || d.length === 13) && d.startsWith("55")) d = d.slice(2); d = d.slice(0, 11);
+    if (d.length <= 2) return d ? `(${d}` : ""; const n = d.slice(2); return `(${d.slice(0, 2)}) ${n.length > (d.length === 11 ? 5 : 4) ? n.slice(0, d.length === 11 ? 5 : 4) + "-" + n.slice(d.length === 11 ? 5 : 4) : n}`; };
+
+  window.LH = { soDig, cpfValido, whatsNormal, fmtCPF, fmtWhats, colunas, pagamento, pctTxt, LINHAS, nomeLinha, CFG, configurado, criarCliente, manterConectado, esc, brl, mesAno, catOf, norm, rankCat, ordenarCats, ordenar, whatsLink, rowToPeca, pecaToRow, rowToConfig, configToRow, fotoURL };
 })();

@@ -402,6 +402,16 @@ select:focus{border-color:var(--gold)}
 .nota-info .btn{justify-self:start;margin-top:4px;text-decoration:none}
 .nota-info .btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
 .previa{background:var(--ink);color:var(--bg);text-align:center;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:6px 12px}
+/* clientes */
+.abas a.aba-link{letter-spacing:.1em}
+.tag-v{display:inline-block;justify-self:start;width:max-content;border:1px solid var(--line);border-radius:999px;padding:0 7px;font-size:10px!important;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-deep)!important}
+.cli-topo{display:flex;flex-wrap:wrap;gap:10px 22px}
+.cli-topo b{display:block;font-family:var(--display);font-weight:400;font-size:20px;margin-top:2px;font-variant-numeric:tabular-nums}
+.cli-obs{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px;white-space:pre-wrap}
+a.btn{text-decoration:none}
+.cli-zap{width:100%}
+#cliCorpo .cartao{margin:0}
+#cliCorpo .reg .dir .linkbtn{font-size:11px}
 </style>
 </head>
 <body>
@@ -422,6 +432,7 @@ select:focus{border-color:var(--gold)}
 <main>
   <nav class="abas" aria-label="Seções do painel">
     <a class="aba-link" href="painel.html">Peças</a>
+    <a class="aba-link" href="painel.html#pedidos">Pedidos</a>
     <a class="aba-link" href="painel.html#acessos">Acessos</a>
     <span class="aba-link atual" aria-current="page">Gestão</span>
   </nav>
@@ -434,6 +445,18 @@ select:focus{border-color:var(--gold)}
 <div class="dock" id="dockG" hidden>
   <div class="dock-in um">
     <button class="btn primary" id="acaoG" type="button">Novo</button>
+  </div>
+</div>
+
+<!-- Ficha da cliente -->
+<div class="sheet" id="cli" hidden role="dialog" aria-modal="true" aria-labelledby="cliTitulo">
+  <div class="panel">
+    <div class="panel-h">
+      <h3 id="cliTitulo">Cliente</h3>
+      <button class="icon-btn" id="cliFechar" type="button" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="panel-b" id="cliCorpo"></div>
+    <div class="panel-f" id="cliRodape"></div>
   </div>
 </div>
 

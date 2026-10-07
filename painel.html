@@ -261,6 +261,52 @@ img{max-width:100%}
 .manter{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--ink);cursor:pointer;padding:2px 0}
 .manter input{width:20px;height:20px;accent-color:var(--gold-deep);margin:0;flex:none}
 .gate-in code{background:var(--surface-2);padding:2px 6px;border-radius:6px;font-size:13px}
+/* pedidos */
+.abas button{letter-spacing:.1em}
+.abas .aba-link{letter-spacing:.1em}
+.abas button{position:relative}
+.abas .badge{position:absolute;top:1px;right:2px;display:grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--gold-deep);color:var(--surface);font-size:10px;letter-spacing:0}
+.filtro-sit{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:0 0 14px}
+.filtro-sit button{border:1px solid var(--line);background:transparent;border-radius:999px;min-height:38px;padding:0 4px;font-size:13px;letter-spacing:.01em;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pdRodape .btn{letter-spacing:.08em;white-space:nowrap}
+a.btn{text-decoration:none}
+.filtro-sit button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.pds{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.pd{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 14px 10px 10px;cursor:pointer}
+.pd:focus-visible{outline:2px solid var(--gold-deep);outline-offset:2px}
+.pd.cancelado{opacity:.62}
+.pd-fotos{display:flex}
+.pd-fotos img,.pd-fotos .semfoto,.pd-fotos .mais{width:48px;height:48px;border-radius:8px;object-fit:cover;background:var(--surface-2);border:2px solid var(--surface);display:grid;place-items:center;font-size:12px;color:var(--ink-soft)}
+.pd-fotos > * + *{margin-left:-18px}
+.pd-meio{display:grid;gap:2px;min-width:0}
+.pd-meio b{font-family:var(--display);font-weight:400;font-size:19px;line-height:1.15;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pd-meio small{font-size:12px;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pd-val{text-align:right;font-family:var(--display);font-size:19px;color:var(--gold-deep);white-space:nowrap;font-variant-numeric:tabular-nums}
+.pd-val small{display:block;font-family:var(--body);font-size:11px;color:var(--ink-soft);letter-spacing:.06em}
+.sit{display:inline-block;border-radius:999px;padding:2px 9px;font-family:var(--body);font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;border:1px solid var(--line);color:var(--ink-soft)}
+.sit.novo{background:var(--gold);border-color:var(--gold);color:var(--on-gold)}
+.sit.vendido{border-color:#3F7A4A;color:#3F7A4A}
+.pd-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;font-size:13px;color:var(--ink-soft)}
+.pd-itens{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.pd-it{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 12px 8px 8px}
+.pd-it img,.pd-it .semfoto{width:64px;height:64px;border-radius:8px;object-fit:cover;background:var(--surface-2);display:block}
+.pd-it .nm{font-family:var(--display);font-size:17px;line-height:1.2}
+.pd-it .sub{font-size:12px;color:var(--ink-soft);letter-spacing:.04em;margin-top:2px}
+.pd-it .alerta{font-size:11px;color:var(--danger);margin-top:3px}
+.pd-it .vl{text-align:right;font-family:var(--display);font-size:17px;color:var(--ink);white-space:nowrap;font-variant-numeric:tabular-nums}
+.pd-tot{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:4px}
+.pd-tot .lin{display:flex;justify-content:space-between;gap:12px;font-size:14px;color:var(--ink-soft)}
+.pd-tot .lin.forte{font-size:15px;color:var(--ink)}
+.pd-tot .lin.forte b{font-family:var(--display);font-weight:400;font-size:24px;color:var(--gold-deep)}
+.pd-ok{background:color-mix(in srgb,#3F7A4A 10%,var(--surface));border:1px solid color-mix(in srgb,#3F7A4A 40%,var(--line));border-radius:12px;padding:12px 14px;font-size:14px;color:var(--ink)}
+.pd-conf{display:grid;gap:14px;border-top:1px solid var(--line);padding-top:14px}
+.pd-conf h4{margin:0;font-family:var(--display);font-weight:400;font-size:22px}
+.pd-conf select{width:100%;min-height:48px;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:0 12px;font-size:16px}
+.pd-rap{display:flex;gap:8px;flex-wrap:wrap}
+.pd-cli{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.pd-cli b{display:block;font-family:var(--display);font-weight:400;font-size:21px;line-height:1.2;margin-top:2px}
+.pd-cli small{display:block;font-size:13px;color:var(--ink-soft)}
+.pd-cli-b{display:flex;gap:8px}
 </style>
 </head>
 <body>
@@ -282,6 +328,7 @@ img{max-width:100%}
 <main>
   <nav class="abas" id="abas" role="tablist" aria-label="Seções do painel" hidden>
     <button type="button" role="tab" id="tabPecas" aria-selected="true" aria-controls="abaPecas">Peças</button>
+    <button type="button" role="tab" id="tabPedidos" aria-selected="false" aria-controls="abaPedidos">Pedidos<span class="badge" id="pdBadge" hidden></span></button>
     <button type="button" role="tab" id="tabAcessos" aria-selected="false" aria-controls="abaAcessos">Acessos</button>
     <a class="aba-link" href="gestao.html" id="tabGestao">Gestão</a>
   </nav>
@@ -313,6 +360,16 @@ img{max-width:100%}
   <p class="showing" id="mostrando" hidden></p>
   <div id="lista"><div class="loading">CARREGANDO VITRINE…</div></div>
   </section>
+  <section id="abaPedidos" role="tabpanel" aria-labelledby="tabPedidos" hidden>
+    <div class="summary"><h2>Pedidos</h2><button class="linkbtn" type="button" id="pdAtualizar">Atualizar</button></div>
+    <div class="filtro-sit" id="pdFiltro" role="group" aria-label="Situação do pedido">
+      <button type="button" data-sit="novo" aria-pressed="true">Novos</button>
+      <button type="button" data-sit="vendido" aria-pressed="false">Vendidos</button>
+      <button type="button" data-sit="cancelado" aria-pressed="false">Cancelados</button>
+      <button type="button" data-sit="" aria-pressed="false">Todos</button>
+    </div>
+    <div id="pdLista"></div>
+  </section>
   <section id="abaAcessos" role="tabpanel" aria-labelledby="tabAcessos" hidden>
     <div class="summary"><h2>Acessos</h2><button class="linkbtn" type="button" id="acAtualizar">Atualizar</button></div>
     <div class="periodo" role="group" aria-label="Período">
@@ -330,6 +387,18 @@ img{max-width:100%}
     <button class="btn primary" id="btnAdd" disabled>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 5v14M5 12h14"/></svg>Adicionar
     </button>
+  </div>
+</div>
+
+<!-- Pedido da sacolinha -->
+<div class="sheet" id="pedido" hidden role="dialog" aria-modal="true" aria-labelledby="pdTitulo">
+  <div class="panel">
+    <div class="panel-h">
+      <h3 id="pdTitulo">Pedido</h3>
+      <button class="icon-btn" id="pdFechar" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="panel-b" id="pdCorpo"></div>
+    <div class="panel-f" id="pdRodape"></div>
   </div>
 </div>
 
