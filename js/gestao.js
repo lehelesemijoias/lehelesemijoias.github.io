@@ -287,7 +287,10 @@
     $("#fmCalc").hidden = !linhas.length;
     $("#fmCalc").innerHTML = linhas.filter(Boolean).map(l => `<div class="${l.destaque ? "dest" : ""}${l.alerta ? " alerta" : ""}"><span>${esc(l.r)}</span><b>${esc(l.v)}</b></div>`).join("");
   }
+  // tira botões extras deixados por um formulário anterior (ex.: "Usar o preço sugerido")
+  const limparExtras = () => document.querySelectorAll("#fm .acao-extra").forEach(el => el.remove());
   function abrirForm(o) {
+    limparExtras();
     FM = Object.assign({ vals: {} }, o);
     $("#fmTitulo").textContent = o.titulo;
     $("#fmExtra").innerHTML = o.extra || ""; $("#fmExtra").hidden = !o.extra;
@@ -313,7 +316,7 @@
       catch (e) { falhou(e); b.disabled = false; b.textContent = f.textoSalvar || "Salvar"; }
     };
   }
-  function fecharForm() { $("#fm").hidden = true; document.body.style.overflow = ""; FM = null; }
+  function fecharForm() { $("#fm").hidden = true; document.body.style.overflow = ""; FM = null; limparExtras(); }
   $("#fmFechar").onclick = fecharForm;
   $("#fmCampos").addEventListener("input", e => {
     if (!FM) return;
